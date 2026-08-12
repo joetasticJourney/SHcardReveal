@@ -200,6 +200,29 @@
     margin-top: 16px;
     box-shadow: 0 -12px 16px -8px var(--bg);
   }
+  .bottom-actions {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    display: flex;
+    gap: 10px;
+    padding: 10px 16px;
+    padding-bottom: max(10px, env(safe-area-inset-bottom));
+    padding-left:  max(16px, env(safe-area-inset-left));
+    padding-right: max(16px, env(safe-area-inset-right));
+    background: linear-gradient(to top, var(--bg) 78%, transparent);
+    z-index: 10;
+  }
+  .bottom-actions button {
+    flex: 1;
+    margin-top: 0;
+  }
+  button.compact {
+    padding: 12px 6px;
+    font-size: 14px;
+    letter-spacing: 0.5px;
+  }
   .scanner {
     position: relative;
     width: 100%;
@@ -323,8 +346,10 @@
       <h2 id="player-greeting"></h2>
       <button id="btn-setup">View Game Setup</button>
       <button id="btn-party" class="secondary">Reveal Party Affiliation</button>
-      <button id="btn-scan-player" class="secondary" style="margin-top:24px;">Scan New Game</button>
-      <button id="btn-newgame-player" class="secondary">Start New Game</button>
+    </div>
+    <div class="bottom-actions">
+      <button id="btn-scan-player" class="secondary compact">Scan New Game</button>
+      <button id="btn-newgame-player" class="secondary compact">Start New Game</button>
     </div>
   </div>
 
