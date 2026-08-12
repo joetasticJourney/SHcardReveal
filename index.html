@@ -1,0 +1,645 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#1e1a17">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Secret Hitler">
+<title>Secret Hitler — Role Cards</title>
+<style>
+  :root {
+    --bg: #1e1a17;
+    --panel: #2b2622;
+    --ink: #f4ecdd;
+    --muted: #a89f8f;
+    --accent: #d4a24a;
+    --liberal: #4a90c8;
+    --fascist: #b8412e;
+    --danger: #8a2a1e;
+    --ok: #4a7a3a;
+    --border: #3a332e;
+  }
+  * { box-sizing: border-box; }
+  html {
+    -webkit-text-size-adjust: 100%;
+    text-size-adjust: 100%;
+  }
+  html, body {
+    margin: 0;
+    padding: 0;
+    background: var(--bg);
+    color: var(--ink);
+    font-family: Georgia, "Times New Roman", serif;
+    min-height: 100vh;
+    min-height: 100dvh;
+    -webkit-tap-highlight-color: transparent;
+    overscroll-behavior-y: none;
+  }
+  body {
+    display: flex;
+    justify-content: center;
+    padding: 16px;
+    padding-top: max(16px, env(safe-area-inset-top));
+    padding-bottom: max(16px, env(safe-area-inset-bottom));
+    padding-left: max(16px, env(safe-area-inset-left));
+    padding-right: max(16px, env(safe-area-inset-right));
+  }
+  .app {
+    width: 100%;
+    max-width: 520px;
+  }
+  h1 {
+    font-size: 22px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    text-align: center;
+    color: var(--accent);
+    margin: 8px 0 20px;
+  }
+  h2 {
+    font-size: 18px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: var(--accent);
+    margin: 0 0 12px;
+  }
+  .panel {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 18px;
+    margin-bottom: 14px;
+  }
+  label {
+    display: block;
+    font-size: 13px;
+    color: var(--muted);
+    margin: 10px 0 4px;
+  }
+  input[type=text], select {
+    width: 100%;
+    background: #17140f;
+    color: var(--ink);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 10px;
+    font-size: 16px;
+    font-family: inherit;
+  }
+  input[type=text]:focus, select:focus {
+    outline: none;
+    border-color: var(--accent);
+  }
+  button {
+    display: block;
+    width: 100%;
+    min-height: 48px;
+    background: var(--accent);
+    color: #1a1508;
+    border: none;
+    border-radius: 6px;
+    padding: 14px;
+    font-size: 16px;
+    font-weight: bold;
+    font-family: inherit;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    cursor: pointer;
+    margin-top: 12px;
+    touch-action: manipulation;
+  }
+  button.secondary {
+    background: transparent;
+    color: var(--accent);
+    border: 1px solid var(--accent);
+  }
+  button.danger {
+    background: var(--danger);
+    color: var(--ink);
+  }
+  button.ok {
+    background: var(--ok);
+    color: var(--ink);
+  }
+  button:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+  }
+  .players-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+  }
+  .players-list li {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 8px;
+  }
+  .players-list input { flex: 1; }
+  .players-list .remove {
+    width: 44px;
+    min-width: 44px;
+    padding: 10px;
+    margin: 0;
+    background: transparent;
+    color: var(--muted);
+    border: 1px solid var(--border);
+    font-size: 20px;
+    line-height: 1;
+  }
+  .row {
+    display: flex;
+    gap: 10px;
+  }
+  .row > * { flex: 1; }
+  .hidden { display: none !important; }
+  .qr-wrap {
+    background: #fff;
+    padding: 16px;
+    border-radius: 8px;
+    display: flex;
+    justify-content: center;
+    margin: 12px 0;
+  }
+  .qr-wrap canvas, .qr-wrap img, .qr-wrap svg { display: block; max-width: 100%; height: auto; }
+  #qr-holder { width: 100%; max-width: 360px; }
+  #qr-holder svg { width: 100%; height: auto; image-rendering: pixelated; }
+  .url-box {
+    background: #17140f;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 10px;
+    font-family: monospace;
+    font-size: 12px;
+    word-break: break-all;
+    color: var(--muted);
+    margin: 8px 0;
+  }
+  .name-btn {
+    background: var(--panel);
+    color: var(--ink);
+    border: 1px solid var(--border);
+    text-transform: none;
+    letter-spacing: 0;
+    font-weight: normal;
+    font-size: 17px;
+  }
+  .card-img-wrap {
+    position: relative;
+    margin: 12px auto;
+    overflow: hidden;
+    max-width: 100%;
+  }
+  .sticky-hide {
+    position: sticky;
+    bottom: max(0px, env(safe-area-inset-bottom));
+    margin-top: 16px;
+    box-shadow: 0 -12px 16px -8px var(--bg);
+  }
+  .card-img {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%) rotate(-90deg);
+    transform-origin: center center;
+    display: block;
+  }
+  .info {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 14px 16px;
+    margin: 12px 0;
+    text-align: center;
+  }
+  .info .label {
+    color: var(--muted);
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin: 8px 0 4px;
+  }
+  .info .value {
+    color: var(--ink);
+    font-size: 18px;
+  }
+  .info ul {
+    padding: 0;
+    margin: 4px 0 0;
+    list-style: none;
+  }
+  .info ul li {
+    padding: 3px 0;
+    font-size: 17px;
+  }
+  .warn {
+    background: #3a2a1a;
+    border: 1px solid var(--accent);
+    color: var(--ink);
+    border-radius: 8px;
+    padding: 14px;
+    text-align: center;
+    font-size: 15px;
+    margin: 12px 0;
+  }
+  .warn strong { color: var(--accent); display: block; margin-bottom: 6px; font-size: 16px; }
+  .muted { color: var(--muted); font-size: 13px; text-align: center; }
+  .footer { text-align: center; color: var(--muted); font-size: 12px; margin-top: 20px; }
+</style>
+</head>
+<body>
+<div class="app">
+  <h1>Secret Hitler</h1>
+
+  <!-- =============== HOST: SETUP =============== -->
+  <div id="screen-setup" class="screen">
+    <div class="panel">
+      <h2>New Game</h2>
+      <p class="muted" style="text-align:left; margin:0 0 8px;">Enter 5–10 player names, then generate a QR code that everyone scans with their phone.</p>
+      <ul id="players-list" class="players-list"></ul>
+      <button id="add-player" class="secondary">+ Add Player</button>
+      <button id="generate">Generate Game</button>
+    </div>
+  </div>
+
+  <!-- =============== HOST: QR =============== -->
+  <div id="screen-qr" class="screen hidden">
+    <div class="panel">
+      <h2>Scan to Join</h2>
+      <p class="muted" style="text-align:left; margin:0;">Every player scans this same code on their phone, then picks their name.</p>
+      <div class="qr-wrap"><div id="qr-holder"></div></div>
+      <div class="url-box" id="url-box"></div>
+      <div class="row">
+        <button id="copy-url" class="secondary">Copy Link</button>
+        <button id="new-game" class="secondary">New Game</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- =============== PLAYER: PICK NAME =============== -->
+  <div id="screen-pick" class="screen hidden">
+    <div class="panel">
+      <h2>Who Are You?</h2>
+      <p class="muted" style="text-align:left; margin:0 0 8px;">Tap your name.</p>
+      <div id="name-buttons"></div>
+    </div>
+  </div>
+
+  <!-- =============== PLAYER: MAIN =============== -->
+  <div id="screen-player" class="screen hidden">
+    <div class="panel">
+      <h2 id="player-greeting"></h2>
+      <button id="btn-setup">View Game Setup</button>
+      <button id="btn-party" class="secondary">Reveal Party Affiliation</button>
+      <button id="btn-switch" class="secondary" style="margin-top:20px;">Switch Player</button>
+    </div>
+  </div>
+
+  <!-- =============== CONFIRM: SETUP =============== -->
+  <div id="screen-confirm-setup" class="screen hidden">
+    <div class="panel">
+      <h2>Hold On</h2>
+      <div class="warn">
+        <strong>This is for YOUR eyes only.</strong>
+        Hide your screen from every other player before continuing.
+      </div>
+      <button id="confirm-setup-yes" class="ok">I'm Hidden — Show Me</button>
+      <button id="confirm-setup-no" class="secondary">Cancel</button>
+    </div>
+  </div>
+
+  <!-- =============== CONFIRM: PARTY =============== -->
+  <div id="screen-confirm-party" class="screen hidden">
+    <div class="panel">
+      <h2>Hold On</h2>
+      <div class="warn">
+        <strong>Show ONLY to the player investigating you.</strong>
+        Do not let anyone else see your Party Membership card.
+      </div>
+      <button id="confirm-party-yes" class="ok">Ready — Reveal Card</button>
+      <button id="confirm-party-no" class="secondary">Cancel</button>
+    </div>
+  </div>
+
+  <!-- =============== REVEAL: SETUP =============== -->
+  <div id="screen-reveal-setup" class="screen hidden">
+    <div id="reveal-setup-body"></div>
+    <button id="hide-setup" class="danger sticky-hide">Hide</button>
+  </div>
+
+  <!-- =============== REVEAL: PARTY =============== -->
+  <div id="screen-reveal-party" class="screen hidden">
+    <div id="reveal-party-body"></div>
+    <button id="hide-party" class="danger sticky-hide">Hide</button>
+  </div>
+
+  <div class="footer">Roles are stored only in the URL fragment. Nothing is sent to any server.</div>
+</div>
+
+<script src="qrcode.js"></script>
+<script>
+(() => {
+  // ---------- Rules ----------
+  const ROLE = { LIBERAL: 0, FASCIST: 1, HITLER: 2 };
+  const COUNTS = {
+    5:  { L: 3, F: 1 },
+    6:  { L: 4, F: 1 },
+    7:  { L: 4, F: 2 },
+    8:  { L: 5, F: 2 },
+    9:  { L: 5, F: 3 },
+    10: { L: 6, F: 3 },
+  };
+  const hitlerKnowsFascists = n => n <= 6;
+
+  // ---------- Utils ----------
+  const $ = id => document.getElementById(id);
+  const show = id => {
+    document.querySelectorAll('.screen').forEach(s => s.classList.add('hidden'));
+    $(id).classList.remove('hidden');
+    window.scrollTo(0, 0);
+  };
+  const b64uEncode = obj => {
+    const json = JSON.stringify(obj);
+    const b = btoa(unescape(encodeURIComponent(json)));
+    return b.replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+  };
+  const b64uDecode = str => {
+    let s = str.replace(/-/g, '+').replace(/_/g, '/');
+    while (s.length % 4) s += '=';
+    return JSON.parse(decodeURIComponent(escape(atob(s))));
+  };
+  const shuffle = arr => {
+    for (let i = arr.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [arr[i], arr[j]] = [arr[j], arr[i]];
+    }
+    return arr;
+  };
+
+  // ---------- Host: setup screen ----------
+  const playersList = $('players-list');
+  const renderRows = (names) => {
+    playersList.innerHTML = '';
+    names.forEach((name, i) => {
+      const li = document.createElement('li');
+      const input = document.createElement('input');
+      input.type = 'text';
+      input.placeholder = `Player ${i + 1}`;
+      input.value = name;
+      input.autocomplete = 'off';
+      input.setAttribute('autocapitalize', 'words');
+      input.setAttribute('autocorrect', 'off');
+      input.setAttribute('spellcheck', 'false');
+      input.addEventListener('input', e => { hostNames[i] = e.target.value; });
+      const rm = document.createElement('button');
+      rm.className = 'remove';
+      rm.textContent = '×';
+      rm.title = 'Remove';
+      rm.addEventListener('click', () => {
+        hostNames.splice(i, 1);
+        renderRows(hostNames);
+      });
+      li.appendChild(input);
+      li.appendChild(rm);
+      playersList.appendChild(li);
+    });
+  };
+  let hostNames = ['', '', '', '', ''];
+  renderRows(hostNames);
+
+  $('add-player').addEventListener('click', () => {
+    if (hostNames.length >= 10) return;
+    hostNames.push('');
+    renderRows(hostNames);
+  });
+
+  $('generate').addEventListener('click', () => {
+    const names = hostNames.map(n => (n || '').trim()).filter(Boolean);
+    if (names.length < 5 || names.length > 10) {
+      alert('Secret Hitler needs 5 to 10 players.');
+      return;
+    }
+    const set = new Set(names.map(n => n.toLowerCase()));
+    if (set.size !== names.length) {
+      alert('Player names must be unique.');
+      return;
+    }
+    const n = names.length;
+    const c = COUNTS[n];
+    const roles = [];
+    for (let i = 0; i < c.L; i++) roles.push(ROLE.LIBERAL);
+    for (let i = 0; i < c.F; i++) roles.push(ROLE.FASCIST);
+    roles.push(ROLE.HITLER);
+    shuffle(roles);
+
+    const data = { p: names, r: roles };
+    const encoded = b64uEncode(data);
+    // Strip any existing hash/query so we build a clean base URL, and fall back
+    // to location.href when location.origin is "null" (file:// scheme).
+    const base = (location.origin && location.origin !== 'null')
+      ? location.origin + location.pathname
+      : location.href.split('#')[0].split('?')[0];
+    const url = base + '#g=' + encoded;
+
+    $('url-box').textContent = url;
+    try {
+      const qr = qrcode(0, 'M');   // typeNumber 0 = auto, level M
+      qr.addData(url);
+      qr.make();
+      // SVG scales cleanly to the container regardless of pixel density.
+      $('qr-holder').innerHTML = qr.createSvgTag({ scalable: true, margin: 2 });
+    } catch (e) {
+      alert('QR generation failed: ' + e.message);
+    }
+    show('screen-qr');
+  });
+
+  $('copy-url').addEventListener('click', async () => {
+    try {
+      await navigator.clipboard.writeText($('url-box').textContent);
+      $('copy-url').textContent = 'Copied!';
+      setTimeout(() => { $('copy-url').textContent = 'Copy Link'; }, 1500);
+    } catch (e) {
+      alert('Copy failed. Long-press the link to copy manually.');
+    }
+  });
+
+  $('new-game').addEventListener('click', () => {
+    hostNames = ['', '', '', '', ''];
+    renderRows(hostNames);
+    show('screen-setup');
+    history.replaceState(null, '', location.pathname);
+  });
+
+  // ---------- Player: load from URL ----------
+  let game = null;      // { p: [names], r: [roles] }
+  let meIdx = -1;
+
+  const parseFragment = () => {
+    const m = location.hash.match(/g=([^&]+)/);
+    if (!m) return null;
+    try { return b64uDecode(m[1]); } catch (e) { return null; }
+  };
+
+  const renderPickScreen = () => {
+    const wrap = $('name-buttons');
+    wrap.innerHTML = '';
+    game.p.forEach((name, i) => {
+      const b = document.createElement('button');
+      b.className = 'name-btn';
+      b.textContent = name;
+      b.addEventListener('click', () => { meIdx = i; renderPlayerScreen(); });
+      wrap.appendChild(b);
+    });
+    show('screen-pick');
+  };
+
+  const renderPlayerScreen = () => {
+    $('player-greeting').textContent = 'Hello, ' + game.p[meIdx];
+    show('screen-player');
+  };
+
+  // ---------- Reveal builders ----------
+  const ROLE_IMG = {
+    [ROLE.LIBERAL]: 'images/LiberalSecretRole.png',
+    [ROLE.FASCIST]: 'images/FascistSecretRole.png',
+    [ROLE.HITLER]:  'images/HitlerSecretRole.png',
+  };
+  const PARTY_IMG = {
+    [ROLE.LIBERAL]: 'images/LiberalPartyMembership.png',
+    [ROLE.FASCIST]: 'images/FascistPartyMembership.png',
+    [ROLE.HITLER]:  'images/FascistPartyMembership.png',
+  };
+
+  const rotatedImgHtml = (src) =>
+    `<div class="card-img-wrap"><img class="card-img" src="${src}" alt=""></div>`;
+
+  // After render, resize the wrapper to the rotated image's visual box.
+  const viewportH = () => (window.visualViewport?.height) || window.innerHeight;
+  const viewportW = () => (window.visualViewport?.width)  || window.innerWidth;
+  const fitRotatedImages = (root) => {
+    root.querySelectorAll('img.card-img').forEach(img => {
+      const layout = () => {
+        const wrap = img.parentElement;
+        const containerW = wrap.parentElement.clientWidth || viewportW();
+        // Leave room for the sticky Hide button (~64px) plus a bit of breathing space.
+        const maxW = Math.min(containerW, viewportW() * 0.95);
+        const maxH = Math.max(200, viewportH() - 120);
+        const nW = img.naturalWidth, nH = img.naturalHeight;
+        if (!nW || !nH) return;
+        // Post-rotation visual dims: width = nH, height = nW. Scale to fit.
+        let scale = maxW / nH;
+        if (nW * scale > maxH) scale = maxH / nW;
+        const imgW = nW * scale;
+        const imgH = nH * scale;
+        img.style.width = imgW + 'px';
+        img.style.height = imgH + 'px';
+        wrap.style.width = imgH + 'px';   // rotated width  = original height
+        wrap.style.height = imgW + 'px';  // rotated height = original width
+      };
+      if (img.complete && img.naturalWidth) layout();
+      else img.addEventListener('load', layout, { once: true });
+    });
+  };
+
+  const buildSetupCard = () => {
+    const myRole = game.r[meIdx];
+    const n = game.p.length;
+    let extra = '';
+
+    if (myRole === ROLE.FASCIST) {
+      const teammates = [];
+      let hitlerName = '';
+      game.r.forEach((r, i) => {
+        if (i === meIdx) return;
+        if (r === ROLE.HITLER) hitlerName = game.p[i];
+        else if (r === ROLE.FASCIST) teammates.push(game.p[i]);
+      });
+      const others = teammates.length
+        ? `<ul>${teammates.map(t => `<li>${t}</li>`).join('')}</ul>`
+        : `<div class="value">(none — you are the only Fascist)</div>`;
+      extra = `
+        <div class="info">
+          <div class="label">Hitler</div>
+          <div class="value">${hitlerName}</div>
+          <div class="label">Other Fascists</div>
+          ${others}
+        </div>`;
+    } else if (myRole === ROLE.HITLER) {
+      if (hitlerKnowsFascists(n)) {
+        const fascists = [];
+        game.r.forEach((r, i) => { if (r === ROLE.FASCIST) fascists.push(game.p[i]); });
+        const list = fascists.length
+          ? `<ul>${fascists.map(t => `<li>${t}</li>`).join('')}</ul>`
+          : `<div class="value">(none)</div>`;
+        extra = `
+          <div class="info">
+            <div class="label">Your Fascists</div>
+            ${list}
+          </div>`;
+      } else {
+        extra = `
+          <div class="info">
+            <div class="value">In a ${n}-player game, you do not know the Fascists. They know you.</div>
+          </div>`;
+      }
+    }
+    return rotatedImgHtml(ROLE_IMG[myRole]) + extra;
+  };
+
+  const buildPartyCard = () => {
+    const myRole = game.r[meIdx];
+    return rotatedImgHtml(PARTY_IMG[myRole]);
+  };
+
+  // ---------- Player buttons ----------
+  $('btn-setup').addEventListener('click', () => show('screen-confirm-setup'));
+  $('btn-party').addEventListener('click', () => show('screen-confirm-party'));
+  $('btn-switch').addEventListener('click', () => { meIdx = -1; renderPickScreen(); });
+
+  $('confirm-setup-no').addEventListener('click', () => show('screen-player'));
+  $('confirm-party-no').addEventListener('click', () => show('screen-player'));
+
+  $('confirm-setup-yes').addEventListener('click', () => {
+    const body = $('reveal-setup-body');
+    body.innerHTML = buildSetupCard();
+    show('screen-reveal-setup');
+    fitRotatedImages(body);
+  });
+  $('confirm-party-yes').addEventListener('click', () => {
+    const body = $('reveal-party-body');
+    body.innerHTML = buildPartyCard();
+    show('screen-reveal-party');
+    fitRotatedImages(body);
+  });
+
+  const refitAll = () => {
+    fitRotatedImages($('reveal-setup-body'));
+    fitRotatedImages($('reveal-party-body'));
+  };
+  window.addEventListener('resize', refitAll);
+  window.addEventListener('orientationchange', refitAll);
+  window.visualViewport?.addEventListener('resize', refitAll);
+
+  $('hide-setup').addEventListener('click', () => show('screen-player'));
+  $('hide-party').addEventListener('click', () => show('screen-player'));
+
+  // ---------- Boot ----------
+  const boot = () => {
+    const g = parseFragment();
+    if (g && Array.isArray(g.p) && Array.isArray(g.r) && g.p.length === g.r.length) {
+      game = g;
+      renderPickScreen();
+    } else {
+      show('screen-setup');
+    }
+  };
+  boot();
+})();
+</script>
+</body>
+</html>
