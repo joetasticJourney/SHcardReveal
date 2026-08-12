@@ -554,7 +554,9 @@
         meIdx = i;
         storeSet(STORE_ME, String(i));
         $('player-greeting').textContent = 'Hello, ' + game.p[meIdx];
-        go('screen-player');
+        // Replace the pick entry with the player entry so back doesn't
+        // return here — a picked player stays picked for the whole game.
+        replaceCurrent('screen-player');
       });
       wrap.appendChild(b);
     });
@@ -656,7 +658,12 @@
   // ---------- Player buttons ----------
   $('btn-setup').addEventListener('click', () => go('screen-confirm-setup'));
   $('btn-party').addEventListener('click', () => go('screen-confirm-party'));
-  $('btn-switch').addEventListener('click', () => { meIdx = -1; storeDel(STORE_ME); back(); });
+  $('btn-switch').addEventListener('click', () => {
+    meIdx = -1;
+    storeDel(STORE_ME);
+    // Reset the root of history to pick — player is no longer selected.
+    show('screen-pick');
+  });
 
   $('confirm-setup-no').addEventListener('click', () => back());
   $('confirm-party-no').addEventListener('click', () => back());
@@ -731,10 +738,8 @@
     if (savedIdx >= 0 && savedIdx < game.p.length) {
       meIdx = savedIdx;
       $('player-greeting').textContent = 'Hello, ' + game.p[meIdx];
-      // Establish 'screen-pick' as the initial history entry, then navigate
-      // to the player screen so back returns to name selection naturally.
-      show('screen-pick');
-      go('screen-player');
+      // Land directly on the player screen — a picked player stays picked.
+      show('screen-player');
     } else {
       show('screen-pick');
     }
