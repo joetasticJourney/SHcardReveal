@@ -289,6 +289,7 @@
       <ul id="players-list" class="players-list"></ul>
       <button id="add-player" class="secondary">+ Add Player</button>
       <button id="generate">Generate Game</button>
+      <button id="btn-rejoin" class="secondary hidden" style="margin-top:24px;">Rejoin Game</button>
     </div>
   </div>
 
@@ -322,8 +323,8 @@
       <h2 id="player-greeting"></h2>
       <button id="btn-setup">View Game Setup</button>
       <button id="btn-party" class="secondary">Reveal Party Affiliation</button>
-      <button id="btn-switch" class="secondary" style="margin-top:20px;">Switch Player</button>
-      <button id="btn-scan-player" class="secondary">Scan New Game</button>
+      <button id="btn-scan-player" class="secondary" style="margin-top:24px;">Scan New Game</button>
+      <button id="btn-newgame-player" class="secondary">Start New Game</button>
     </div>
   </div>
 
@@ -554,7 +555,7 @@
     renderRows(hostNames);
     // Reset URL and history state — this becomes the new starting point.
     history.replaceState(null, '', location.pathname);
-    show('screen-setup');
+    showSetup();
   });
 
   // ---------- Player: load from URL / storage ----------
@@ -704,14 +705,44 @@
     return rotatedImgHtml(PARTY_IMG[myRole]);
   };
 
+  // ---------- Setup screen: Rejoin visibility ----------
+  const updateRejoinVisibility = () => {
+    const btn = $('btn-rejoin');
+    if (storeGet(STORE_GAME)) btn.classList.remove('hidden');
+    else btn.classList.add('hidden');
+  };
+  const showSetup = () => { updateRejoinVisibility(); show('screen-setup'); };
+
   // ---------- Player buttons ----------
   $('btn-setup').addEventListener('click', () => go('screen-confirm-setup'));
   $('btn-party').addEventListener('click', () => go('screen-confirm-party'));
-  $('btn-switch').addEventListener('click', () => {
+
+  $('btn-newgame-player').addEventListener('click', () => {
+    // Move to host mode. Storage keeps the current game so Rejoin can
+    // restore it if the user changes their mind.
+    game = null;
     meIdx = -1;
-    storeDel(STORE_ME);
-    // Reset the root of history to pick — player is no longer selected.
-    show('screen-pick');
+    hostNames = ['', '', '', '', ''];
+    renderRows(hostNames);
+    showSetup();
+  });
+
+  $('btn-rejoin').addEventListener('click', () => {
+    const enc = storeGet(STORE_GAME);
+    if (!enc) return;
+    const g = decodeGame(enc);
+    if (!g) return;
+    game = g;
+    buildPickButtons();
+    const savedIdxRaw = storeGet(STORE_ME);
+    const savedIdx = savedIdxRaw === null ? -1 : parseInt(savedIdxRaw, 10);
+    if (savedIdx >= 0 && savedIdx < game.p.length) {
+      meIdx = savedIdx;
+      $('player-greeting').textContent = 'Hello, ' + game.p[meIdx];
+      show('screen-player');
+    } else {
+      show('screen-pick');
+    }
   });
 
   $('confirm-setup-no').addEventListener('click', () => back());
@@ -898,7 +929,7 @@
       g = decodeGame(storedEnc);
     }
 
-    if (!g) { show('screen-setup'); return; }
+    if (!g) { showSetup(); return; }
 
     game = g;
     buildPickButtons();
