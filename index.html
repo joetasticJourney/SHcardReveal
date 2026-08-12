@@ -200,6 +200,32 @@
     margin-top: 16px;
     box-shadow: 0 -12px 16px -8px var(--bg);
   }
+  .scanner {
+    position: relative;
+    width: 100%;
+    aspect-ratio: 1 / 1;
+    background: #000;
+    border-radius: 8px;
+    overflow: hidden;
+    margin: 12px 0 4px;
+  }
+  .scanner video {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+  }
+  .scanner-frame {
+    position: absolute;
+    top: 12%;
+    left: 12%;
+    width: 76%;
+    height: 76%;
+    border: 2px solid var(--accent);
+    border-radius: 8px;
+    box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.35);
+    pointer-events: none;
+  }
   .card-img {
     position: absolute;
     top: 50%;
@@ -286,6 +312,7 @@
       <h2>Who Are You?</h2>
       <p class="muted" style="text-align:left; margin:0 0 8px;">Tap your name.</p>
       <div id="name-buttons"></div>
+      <button id="btn-scan-pick" class="secondary" style="margin-top:20px;">Scan New Game</button>
     </div>
   </div>
 
@@ -296,6 +323,21 @@
       <button id="btn-setup">View Game Setup</button>
       <button id="btn-party" class="secondary">Reveal Party Affiliation</button>
       <button id="btn-switch" class="secondary" style="margin-top:20px;">Switch Player</button>
+      <button id="btn-scan-player" class="secondary">Scan New Game</button>
+    </div>
+  </div>
+
+  <!-- =============== SCANNER =============== -->
+  <div id="screen-scan" class="screen hidden">
+    <div class="panel">
+      <h2>Scan New Game</h2>
+      <p class="muted" style="text-align:left; margin:0 0 8px;">Point at the game's QR code. This replaces your current game.</p>
+      <div class="scanner">
+        <video id="scan-video" playsinline muted autoplay></video>
+        <div class="scanner-frame"></div>
+      </div>
+      <div id="scan-status" class="muted" style="margin: 8px 0;">Requesting camera…</div>
+      <button id="scan-cancel" class="secondary">Cancel</button>
     </div>
   </div>
 
@@ -341,6 +383,7 @@
 </div>
 
 <script src="qrcode.js"></script>
+<script src="jsQR.js"></script>
 <script>
 (() => {
   // ---------- Rules ----------
@@ -520,6 +563,12 @@
 
   const STORE_GAME = 'sh_game_enc';
   const STORE_ME   = 'sh_me_idx';
+  // Tracks the last game we loaded from a URL fragment. Used at boot so that
+  // when an iOS home-screen shortcut re-launches with a stale pinned URL, we
+  // can distinguish "user just opened a genuinely new link" (fragment differs
+  // from lastFrag) from "the pinned URL is old, an in-app scan is newer"
+  // (fragment matches lastFrag but stored differs).
+  const STORE_LAST_FRAG = 'sh_last_frag';
   const storage = (() => {
     try {
       const t = '__sh_probe__';
@@ -694,6 +743,120 @@
   $('hide-setup').addEventListener('click', () => back());
   $('hide-party').addEventListener('click', () => back());
 
+  // ---------- QR Scanner ----------
+  let scanStream = null;
+  let scanRAF = null;
+  let scanCanvas = null;
+  let scanCtx = null;
+
+  const stopScanner = () => {
+    if (scanRAF) { cancelAnimationFrame(scanRAF); scanRAF = null; }
+    if (scanStream) {
+      scanStream.getTracks().forEach(t => t.stop());
+      scanStream = null;
+    }
+    const v = $('scan-video');
+    if (v) v.srcObject = null;
+  };
+
+  const applyScannedGame = (enc, g) => {
+    // In-app scan: replace the stored game and clear the picked player.
+    // Deliberately do NOT touch lastFrag so a subsequent home-screen relaunch
+    // with the (old, pinned) URL fragment still prefers the newer stored game.
+    storeSet(STORE_GAME, enc);
+    storeDel(STORE_ME);
+    try { history.replaceState(null, '', location.pathname + '#g=' + enc); } catch (e) {}
+    game = g;
+    meIdx = -1;
+    buildPickButtons();
+    show('screen-pick');   // Reset root to pick with the new game loaded
+  };
+
+  const tickScanner = () => {
+    scanRAF = null;
+    if (!scanStream) return;
+    const video = $('scan-video');
+    if (video.readyState < 2 || !video.videoWidth) {
+      scanRAF = requestAnimationFrame(tickScanner);
+      return;
+    }
+    const target = 480;
+    const w = video.videoWidth, h = video.videoHeight;
+    const scale = Math.min(1, target / Math.max(w, h));
+    scanCanvas.width  = Math.round(w * scale);
+    scanCanvas.height = Math.round(h * scale);
+    scanCtx.drawImage(video, 0, 0, scanCanvas.width, scanCanvas.height);
+    const img = scanCtx.getImageData(0, 0, scanCanvas.width, scanCanvas.height);
+    const code = jsQR(img.data, img.width, img.height, { inversionAttempts: 'dontInvert' });
+    if (code && code.data) {
+      const m = code.data.match(/[#&?]g=([A-Za-z0-9_-]+)/);
+      if (m) {
+        const g = decodeGame(m[1]);
+        if (g) {
+          stopScanner();
+          applyScannedGame(m[1], g);
+          return;
+        } else {
+          $('scan-status').textContent = 'That QR is not a valid game — keep scanning…';
+        }
+      } else {
+        $('scan-status').textContent = 'That QR is not a Secret Hitler game — keep scanning…';
+      }
+    }
+    scanRAF = requestAnimationFrame(tickScanner);
+  };
+
+  const openScanner = async () => {
+    if (typeof jsQR === 'undefined') {
+      alert('QR scanner did not load. Please refresh.');
+      return;
+    }
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+      alert('Camera not supported in this browser.');
+      return;
+    }
+    go('screen-scan');
+    $('scan-status').textContent = 'Requesting camera…';
+    try {
+      // Prefer the rear-facing camera; fall back to any camera.
+      let stream;
+      try {
+        stream = await navigator.mediaDevices.getUserMedia({
+          video: { facingMode: { ideal: 'environment' } },
+          audio: false,
+        });
+      } catch (e) {
+        stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
+      }
+      scanStream = stream;
+      const video = $('scan-video');
+      video.srcObject = stream;
+      // iOS Safari requires an explicit play() after srcObject assignment.
+      try { await video.play(); } catch (e) { /* autoplay may resolve on its own */ }
+      scanCanvas = document.createElement('canvas');
+      scanCtx = scanCanvas.getContext('2d', { willReadFrequently: true });
+      $('scan-status').textContent = 'Point at a QR code…';
+      scanRAF = requestAnimationFrame(tickScanner);
+    } catch (err) {
+      const msg = (err && err.name === 'NotAllowedError')
+        ? 'Camera permission denied. Enable it in your browser settings.'
+        : ('Camera unavailable: ' + (err?.message || err));
+      $('scan-status').textContent = msg;
+    }
+  };
+
+  $('btn-scan-pick').addEventListener('click', openScanner);
+  $('btn-scan-player').addEventListener('click', openScanner);
+  $('scan-cancel').addEventListener('click', () => { stopScanner(); back(); });
+
+  // If the user navigates away from the scanner by any means (back button,
+  // gesture, popstate), release the camera stream.
+  window.addEventListener('popstate', () => {
+    if (scanStream && $('screen-scan').classList.contains('hidden')) {
+      stopScanner();
+    }
+  });
+
   // ---------- Boot ----------
   //
   // Player-mode resolution order:
@@ -708,27 +871,33 @@
   // remember which name they picked; keep 'screen-pick' behind it in history
   // so the phone's back button still returns to name selection.
   const boot = () => {
-    const fragEnc = getFragmentEnc();
-    let enc = null;
+    const fragEnc   = getFragmentEnc();
+    const storedEnc = storeGet(STORE_GAME);
+    const lastFrag  = storeGet(STORE_LAST_FRAG);
     let g = null;
 
     if (fragEnc) {
-      g = decodeGame(fragEnc);
-      if (g) {
-        enc = fragEnc;
-        if (fragEnc !== storeGet(STORE_GAME)) {
+      if (storedEnc && fragEnc === storedEnc) {
+        // Same game as stored — resume (preserves picked player).
+        g = decodeGame(storedEnc);
+      } else if (storedEnc && fragEnc === lastFrag) {
+        // Fragment is the URL we already handled last time, but stored has
+        // moved on since (in-app scan). Prefer stored so the newer game
+        // persists across iOS home-screen relaunches with pinned URLs.
+        g = decodeGame(storedEnc);
+      } else {
+        // Genuinely new game arriving via URL — replace stored, wipe pick.
+        g = decodeGame(fragEnc);
+        if (g) {
           storeSet(STORE_GAME, fragEnc);
+          storeSet(STORE_LAST_FRAG, fragEnc);
           storeDel(STORE_ME);
         }
       }
+    } else if (storedEnc) {
+      g = decodeGame(storedEnc);
     }
-    if (!g) {
-      const savedEnc = storeGet(STORE_GAME);
-      if (savedEnc) {
-        g = decodeGame(savedEnc);
-        if (g) enc = savedEnc;
-      }
-    }
+
     if (!g) { show('screen-setup'); return; }
 
     game = g;
