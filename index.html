@@ -357,11 +357,40 @@
 
   // ---------- Utils ----------
   const $ = id => document.getElementById(id);
-  const show = id => {
+
+  // Screen navigation with real browser history so the phone's back button
+  // moves back through the app instead of closing the tab.
+  const screenStack = [];
+  const swap = id => {
     document.querySelectorAll('.screen').forEach(s => s.classList.add('hidden'));
     $(id).classList.remove('hidden');
     window.scrollTo(0, 0);
   };
+  const show = id => {                       // initial screen (replace)
+    screenStack.length = 0;
+    screenStack.push(id);
+    history.replaceState({ i: 0 }, '');
+    swap(id);
+  };
+  const go = id => {                         // forward nav (push)
+    const curIdx = history.state?.i ?? screenStack.length - 1;
+    screenStack.length = curIdx + 1;
+    screenStack.push(id);
+    history.pushState({ i: screenStack.length - 1 }, '');
+    swap(id);
+  };
+  const replaceCurrent = id => {             // swap current entry (no new history)
+    const curIdx = history.state?.i ?? screenStack.length - 1;
+    screenStack[curIdx] = id;
+    history.replaceState({ i: curIdx }, '');
+    swap(id);
+  };
+  const back = () => history.back();
+
+  window.addEventListener('popstate', e => {
+    const i = e.state?.i ?? 0;
+    if (screenStack[i]) swap(screenStack[i]);
+  });
   const b64uEncode = obj => {
     const json = JSON.stringify(obj);
     const b = btoa(unescape(encodeURIComponent(json)));
@@ -455,7 +484,7 @@
     } catch (e) {
       alert('QR generation failed: ' + e.message);
     }
-    show('screen-qr');
+    go('screen-qr');
   });
 
   $('copy-url').addEventListener('click', async () => {
@@ -471,8 +500,9 @@
   $('new-game').addEventListener('click', () => {
     hostNames = ['', '', '', '', ''];
     renderRows(hostNames);
-    show('screen-setup');
+    // Reset URL and history state — this becomes the new starting point.
     history.replaceState(null, '', location.pathname);
+    show('screen-setup');
   });
 
   // ---------- Player: load from URL ----------
@@ -485,22 +515,20 @@
     try { return b64uDecode(m[1]); } catch (e) { return null; }
   };
 
-  const renderPickScreen = () => {
+  const buildPickButtons = () => {
     const wrap = $('name-buttons');
     wrap.innerHTML = '';
     game.p.forEach((name, i) => {
       const b = document.createElement('button');
       b.className = 'name-btn';
       b.textContent = name;
-      b.addEventListener('click', () => { meIdx = i; renderPlayerScreen(); });
+      b.addEventListener('click', () => {
+        meIdx = i;
+        $('player-greeting').textContent = 'Hello, ' + game.p[meIdx];
+        go('screen-player');
+      });
       wrap.appendChild(b);
     });
-    show('screen-pick');
-  };
-
-  const renderPlayerScreen = () => {
-    $('player-greeting').textContent = 'Hello, ' + game.p[meIdx];
-    show('screen-player');
   };
 
   // ---------- Reveal builders ----------
@@ -597,23 +625,25 @@
   };
 
   // ---------- Player buttons ----------
-  $('btn-setup').addEventListener('click', () => show('screen-confirm-setup'));
-  $('btn-party').addEventListener('click', () => show('screen-confirm-party'));
-  $('btn-switch').addEventListener('click', () => { meIdx = -1; renderPickScreen(); });
+  $('btn-setup').addEventListener('click', () => go('screen-confirm-setup'));
+  $('btn-party').addEventListener('click', () => go('screen-confirm-party'));
+  $('btn-switch').addEventListener('click', () => { meIdx = -1; back(); });
 
-  $('confirm-setup-no').addEventListener('click', () => show('screen-player'));
-  $('confirm-party-no').addEventListener('click', () => show('screen-player'));
+  $('confirm-setup-no').addEventListener('click', () => back());
+  $('confirm-party-no').addEventListener('click', () => back());
 
+  // Reveal screens replace the confirm entry so a single back tap returns
+  // directly to the player screen (skipping the confirm modal).
   $('confirm-setup-yes').addEventListener('click', () => {
     const body = $('reveal-setup-body');
     body.innerHTML = buildSetupCard();
-    show('screen-reveal-setup');
+    replaceCurrent('screen-reveal-setup');
     fitRotatedImages(body);
   });
   $('confirm-party-yes').addEventListener('click', () => {
     const body = $('reveal-party-body');
     body.innerHTML = buildPartyCard();
-    show('screen-reveal-party');
+    replaceCurrent('screen-reveal-party');
     fitRotatedImages(body);
   });
 
@@ -625,15 +655,16 @@
   window.addEventListener('orientationchange', refitAll);
   window.visualViewport?.addEventListener('resize', refitAll);
 
-  $('hide-setup').addEventListener('click', () => show('screen-player'));
-  $('hide-party').addEventListener('click', () => show('screen-player'));
+  $('hide-setup').addEventListener('click', () => back());
+  $('hide-party').addEventListener('click', () => back());
 
   // ---------- Boot ----------
   const boot = () => {
     const g = parseFragment();
     if (g && Array.isArray(g.p) && Array.isArray(g.r) && g.p.length === g.r.length) {
       game = g;
-      renderPickScreen();
+      buildPickButtons();
+      show('screen-pick');
     } else {
       show('screen-setup');
     }
