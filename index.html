@@ -359,17 +359,25 @@
   const $ = id => document.getElementById(id);
 
   // Screen navigation with real browser history so the phone's back button
-  // moves back through the app instead of closing the tab.
+  // moves back through the app instead of closing the tab. In player mode
+  // (loaded from a scanned QR), the root screen re-arms a trap on every back
+  // so the tab is never accidentally closed and the player never loses their
+  // role for the rest of the game.
   const screenStack = [];
+  const isPlayerMode = () => !!game;
   const swap = id => {
     document.querySelectorAll('.screen').forEach(s => s.classList.add('hidden'));
     $(id).classList.remove('hidden');
     window.scrollTo(0, 0);
   };
+  const armRootTrap = () => {
+    if (isPlayerMode()) history.pushState({ i: 0 }, '');
+  };
   const show = id => {                       // initial screen (replace)
     screenStack.length = 0;
     screenStack.push(id);
     history.replaceState({ i: 0 }, '');
+    armRootTrap();
     swap(id);
   };
   const go = id => {                         // forward nav (push)
@@ -390,6 +398,7 @@
   window.addEventListener('popstate', e => {
     const i = e.state?.i ?? 0;
     if (screenStack[i]) swap(screenStack[i]);
+    if (i === 0) armRootTrap();   // Re-arm at root so tab isn't lost.
   });
   const b64uEncode = obj => {
     const json = JSON.stringify(obj);
