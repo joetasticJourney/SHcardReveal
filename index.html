@@ -514,14 +514,33 @@
     show('screen-setup');
   });
 
-  // ---------- Player: load from URL ----------
+  // ---------- Player: load from URL / storage ----------
   let game = null;      // { p: [names], r: [roles] }
   let meIdx = -1;
 
-  const parseFragment = () => {
+  const STORE_GAME = 'sh_game_enc';
+  const STORE_ME   = 'sh_me_idx';
+  const storage = (() => {
+    try {
+      const t = '__sh_probe__';
+      localStorage.setItem(t, '1'); localStorage.removeItem(t);
+      return localStorage;
+    } catch (e) { return null; }   // private mode / disabled
+  })();
+  const storeGet = k => storage ? storage.getItem(k) : null;
+  const storeSet = (k, v) => { if (storage) try { storage.setItem(k, v); } catch (e) {} };
+  const storeDel = k => { if (storage) try { storage.removeItem(k); } catch (e) {} };
+
+  const getFragmentEnc = () => {
     const m = location.hash.match(/g=([^&]+)/);
-    if (!m) return null;
-    try { return b64uDecode(m[1]); } catch (e) { return null; }
+    return m ? m[1] : null;
+  };
+  const decodeGame = (enc) => {
+    try {
+      const g = b64uDecode(enc);
+      if (g && Array.isArray(g.p) && Array.isArray(g.r) && g.p.length === g.r.length) return g;
+    } catch (e) {}
+    return null;
   };
 
   const buildPickButtons = () => {
@@ -533,6 +552,7 @@
       b.textContent = name;
       b.addEventListener('click', () => {
         meIdx = i;
+        storeSet(STORE_ME, String(i));
         $('player-greeting').textContent = 'Hello, ' + game.p[meIdx];
         go('screen-player');
       });
@@ -636,7 +656,7 @@
   // ---------- Player buttons ----------
   $('btn-setup').addEventListener('click', () => go('screen-confirm-setup'));
   $('btn-party').addEventListener('click', () => go('screen-confirm-party'));
-  $('btn-switch').addEventListener('click', () => { meIdx = -1; back(); });
+  $('btn-switch').addEventListener('click', () => { meIdx = -1; storeDel(STORE_ME); back(); });
 
   $('confirm-setup-no').addEventListener('click', () => back());
   $('confirm-party-no').addEventListener('click', () => back());
@@ -668,14 +688,55 @@
   $('hide-party').addEventListener('click', () => back());
 
   // ---------- Boot ----------
+  //
+  // Player-mode resolution order:
+  //   1. If URL fragment has a valid game, use it. If it's a *new* game
+  //      (encoded string differs from what's saved), replace the saved
+  //      game and wipe the saved player index.
+  //   2. Otherwise fall back to the saved game in localStorage — this is
+  //      how a home-screen shortcut resumes an in-progress game.
+  //   3. Otherwise show the host setup screen.
+  //
+  // Once a game is loaded, jump straight to the player's own screen if we
+  // remember which name they picked; keep 'screen-pick' behind it in history
+  // so the phone's back button still returns to name selection.
   const boot = () => {
-    const g = parseFragment();
-    if (g && Array.isArray(g.p) && Array.isArray(g.r) && g.p.length === g.r.length) {
-      game = g;
-      buildPickButtons();
+    const fragEnc = getFragmentEnc();
+    let enc = null;
+    let g = null;
+
+    if (fragEnc) {
+      g = decodeGame(fragEnc);
+      if (g) {
+        enc = fragEnc;
+        if (fragEnc !== storeGet(STORE_GAME)) {
+          storeSet(STORE_GAME, fragEnc);
+          storeDel(STORE_ME);
+        }
+      }
+    }
+    if (!g) {
+      const savedEnc = storeGet(STORE_GAME);
+      if (savedEnc) {
+        g = decodeGame(savedEnc);
+        if (g) enc = savedEnc;
+      }
+    }
+    if (!g) { show('screen-setup'); return; }
+
+    game = g;
+    buildPickButtons();
+    const savedIdxRaw = storeGet(STORE_ME);
+    const savedIdx = savedIdxRaw === null ? -1 : parseInt(savedIdxRaw, 10);
+    if (savedIdx >= 0 && savedIdx < game.p.length) {
+      meIdx = savedIdx;
+      $('player-greeting').textContent = 'Hello, ' + game.p[meIdx];
+      // Establish 'screen-pick' as the initial history entry, then navigate
+      // to the player screen so back returns to name selection naturally.
       show('screen-pick');
+      go('screen-player');
     } else {
-      show('screen-setup');
+      show('screen-pick');
     }
   };
   boot();
