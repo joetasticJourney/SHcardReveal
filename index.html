@@ -1283,7 +1283,7 @@
           <div class="reveal-wait-joke" id="reveal-joke"></div>
         </div>`;
       replaceCurrent('screen-reveal-setup');
-      startJokeRotation(document.getElementById('reveal-joke'), 6000);
+      startJokeRotation(document.getElementById('reveal-joke'), 7000);
       startTimer(REVEAL_TIMER_SECS * 1000, (p, remaining) => {
         const el = document.getElementById('reveal-countdown');
         if (el) el.textContent = Math.ceil(remaining / 1000);
