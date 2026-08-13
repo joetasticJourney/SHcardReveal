@@ -160,6 +160,26 @@
     opacity: 0.4;
     cursor: not-allowed;
   }
+  .section-divider {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    color: var(--muted);
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 2.5px;
+    margin: 28px 0 14px;
+  }
+  .section-divider span { flex-shrink: 0; }
+  .section-divider::before,
+  .section-divider::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: var(--border);
+  }
+  .current-game-section button { margin-top: 10px; }
+  .current-game-section button:first-of-type { margin-top: 0; }
   .game-setting {
     margin: 0 0 14px;
     padding: 12px 14px;
@@ -561,8 +581,12 @@
       <ul id="players-list" class="players-list"></ul>
       <button id="add-player" class="secondary">+ Add Player</button>
       <button id="generate">Generate Game</button>
-      <button id="btn-view-qr" class="secondary hidden" style="margin-top:24px;">View QR Code</button>
-      <button id="btn-rejoin" class="secondary hidden">Rejoin Game</button>
+
+      <div id="current-game-section" class="current-game-section hidden">
+        <div class="section-divider"><span>Current Game</span></div>
+        <button id="btn-view-qr" class="secondary">View QR Code</button>
+        <button id="btn-rejoin" class="secondary">Rejoin Game</button>
+      </div>
     </div>
   </div>
 
@@ -1301,8 +1325,7 @@
   // ---------- Setup screen: Rejoin / View QR visibility ----------
   const updateResumeButtons = () => {
     const has = !!storeGet(STORE_GAME);
-    $('btn-rejoin').classList.toggle('hidden', !has);
-    $('btn-view-qr').classList.toggle('hidden', !has);
+    $('current-game-section').classList.toggle('hidden', !has);
   };
   const showSetup = () => { updateResumeButtons(); show('screen-setup'); };
 
