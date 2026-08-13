@@ -630,10 +630,11 @@
       <button id="add-player" class="secondary">+ Add Player</button>
       <button id="generate">Generate Game</button>
 
-      <div id="current-game-section" class="current-game-section hidden">
-        <div class="section-divider"><span>Current Game</span></div>
-        <button id="btn-view-qr" class="secondary">View QR Code</button>
-        <button id="btn-rejoin" class="secondary">Rejoin Game</button>
+      <div id="current-game-section" class="current-game-section">
+        <div class="section-divider"><span id="current-game-label">Current Game</span></div>
+        <button id="btn-view-qr" class="secondary hidden">View QR Code</button>
+        <button id="btn-rejoin" class="secondary hidden">Rejoin Game</button>
+        <button id="btn-scan-setup" class="secondary">Scan QR Code</button>
       </div>
     </div>
   </div>
@@ -1387,7 +1388,9 @@
   // ---------- Setup screen: Rejoin / View QR visibility ----------
   const updateResumeButtons = () => {
     const has = !!storeGet(STORE_GAME);
-    $('current-game-section').classList.toggle('hidden', !has);
+    $('btn-view-qr').classList.toggle('hidden', !has);
+    $('btn-rejoin').classList.toggle('hidden', !has);
+    $('current-game-label').textContent = has ? 'Current Game' : 'Join a Game';
   };
   const showSetup = () => { updateResumeButtons(); show('screen-setup'); };
 
@@ -1624,6 +1627,7 @@
 
   $('btn-scan-pick').addEventListener('click', openScanner);
   $('btn-scan-player').addEventListener('click', openScanner);
+  $('btn-scan-setup').addEventListener('click', openScanner);
   $('scan-cancel').addEventListener('click', () => { stopScanner(); back(); });
 
   // If the user navigates away from the scanner by any means (back button,
