@@ -334,7 +334,8 @@
       <ul id="players-list" class="players-list"></ul>
       <button id="add-player" class="secondary">+ Add Player</button>
       <button id="generate">Generate Game</button>
-      <button id="btn-rejoin" class="secondary hidden" style="margin-top:24px;">Rejoin Game</button>
+      <button id="btn-view-qr" class="secondary hidden" style="margin-top:24px;">View QR Code</button>
+      <button id="btn-rejoin" class="secondary hidden">Rejoin Game</button>
     </div>
   </div>
 
@@ -372,7 +373,7 @@
     </div>
     <div class="bottom-actions">
       <button id="btn-scan-player" class="secondary compact">Scan New Game</button>
-      <button id="btn-newgame-player" class="secondary compact">Start New Game</button>
+      <button id="btn-newgame-player" class="secondary compact">Game Setup</button>
     </div>
   </div>
 
@@ -768,26 +769,50 @@
     return rotatedImgHtml(PARTY_IMG[myRole]);
   };
 
-  // ---------- Setup screen: Rejoin visibility ----------
-  const updateRejoinVisibility = () => {
-    const btn = $('btn-rejoin');
-    if (storeGet(STORE_GAME)) btn.classList.remove('hidden');
-    else btn.classList.add('hidden');
+  // ---------- Setup screen: Rejoin / View QR visibility ----------
+  const updateResumeButtons = () => {
+    const has = !!storeGet(STORE_GAME);
+    $('btn-rejoin').classList.toggle('hidden', !has);
+    $('btn-view-qr').classList.toggle('hidden', !has);
   };
-  const showSetup = () => { updateRejoinVisibility(); show('screen-setup'); };
+  const showSetup = () => { updateResumeButtons(); show('screen-setup'); };
 
   // ---------- Player buttons ----------
   $('btn-setup').addEventListener('click', () => go('screen-confirm-setup'));
   $('btn-party').addEventListener('click', () => go('screen-confirm-party'));
 
   $('btn-newgame-player').addEventListener('click', () => {
-    // Move to host mode. Storage keeps the current game so Rejoin can
-    // restore it if the user changes their mind.
-    game = null;
-    meIdx = -1;
-    hostNames = ['', '', '', '', ''];
+    // Pre-fill the setup form with the current game's player names so the
+    // host can quickly regenerate with the same lineup. Storage is left
+    // intact so Rejoin / View QR still work for the current game.
+    if (game && game.p) {
+      hostNames = game.p.slice();
+    } else {
+      hostNames = ['', '', '', '', ''];
+    }
     renderRows(hostNames);
     showSetup();
+  });
+
+  $('btn-view-qr').addEventListener('click', () => {
+    const enc = storeGet(STORE_GAME);
+    if (!enc) return;
+    const base = (location.origin && location.origin !== 'null')
+      ? location.origin + location.pathname
+      : location.href.split('#')[0].split('?')[0];
+    const url = base + '#g=' + enc;
+    $('url-box').textContent = url;
+    lastGeneratedEnc = enc;
+    try {
+      const qr = qrcode(0, 'M');
+      qr.addData(url);
+      qr.make();
+      $('qr-holder').innerHTML = qr.createSvgTag({ scalable: true, margin: 2 });
+    } catch (e) {
+      alert('QR generation failed: ' + e.message);
+      return;
+    }
+    go('screen-qr');
   });
 
   $('btn-rejoin').addEventListener('click', () => {
