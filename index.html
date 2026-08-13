@@ -273,6 +273,33 @@
     margin-top: 24px;
     font-style: italic;
   }
+  .reveal-wait-joke {
+    color: var(--ink);
+    font-size: 17px;
+    font-style: italic;
+    line-height: 1.4;
+    margin: 32px auto 0;
+    padding: 0 10px;
+    max-width: 34ch;
+    min-height: 4em;
+    transition: opacity 0.3s ease;
+  }
+  .reveal-wait-joke::before {
+    content: '\201C';
+    color: var(--accent);
+    font-size: 28px;
+    line-height: 0;
+    vertical-align: -8px;
+    margin-right: 4px;
+  }
+  .reveal-wait-joke::after {
+    content: '\201D';
+    color: var(--accent);
+    font-size: 28px;
+    line-height: 0;
+    vertical-align: -14px;
+    margin-left: 2px;
+  }
   .bottom-actions {
     position: fixed;
     left: 0;
@@ -580,12 +607,63 @@
   const hitlerKnowsFascists = n => n <= 6;
   const REVEAL_TIMER_SECS = 10;
 
+  // ---------- Legend jokes (shown to info-blind players during the timer) ----------
+  // Original tall-tales in the classic "unstoppable person" style. Swap the
+  // name below to feature anyone — every joke uses the {{name}} token.
+  const LEGEND_NAME = 'Troy Johnsen';
+  const LEGEND_JOKES = [
+    "{{name}} once got a parking ticket forgiven by staring at the meter.",
+    "{{name}} doesn't wait in line. The line waits for {{name}}.",
+    "{{name}} once negotiated a stop sign into apologizing.",
+    "{{name}}'s shadow takes weekends off.",
+    "{{name}} once ordered a small coffee and left with a lifetime supply.",
+    "When {{name}} boards a plane, the pilot asks him where he wants to go.",
+    "{{name}} taught the dictionary a new word. It was \"{{name}}\".",
+    "{{name}}'s password is his own name. Nobody's dared to test it.",
+    "{{name}} doesn't check his blind spot. His blind spot checks him.",
+    "{{name}} once made a mirror flinch.",
+    "{{name}}'s phone doesn't ring. It clears its throat politely.",
+    "{{name}} has a resting handshake.",
+    "{{name}} once returned an expired coupon and the store thanked him.",
+    "{{name}} doesn't lose signal. Signal loses {{name}}.",
+    "{{name}}'s coffee reheats itself out of respect.",
+    "When {{name}} sneezes, the weather changes.",
+    "{{name}} once mailed a package and it arrived before he wrote the address.",
+    "{{name}} has never blinked. The world blinks in his direction.",
+    "{{name}}'s autofill knows what he means before he does.",
+    "{{name}} once stared at a rain cloud until it apologized and moved on.",
+    "{{name}} doesn't wear a seatbelt. The seat holds him.",
+    "{{name}} once made small talk with a vending machine and walked away with three free sodas.",
+    "{{name}}'s Wi-Fi connects on the first try, every time, everywhere.",
+    "{{name}} once won a raffle he didn't enter.",
+    "{{name}}'s smoke detector calls him before there's a fire.",
+    "{{name}} once returned a library book two years late and the librarian apologized.",
+    "{{name}} can whistle in binary.",
+    "{{name}} once got a full refund with no receipt, no proof of purchase, and no complaint.",
+    "{{name}} doesn't tell time. He asks it politely and it obliges.",
+    "{{name}}'s autocorrect never corrects him. It just takes notes."
+  ];
+  const legendJoke = () =>
+    LEGEND_JOKES[Math.floor(Math.random() * LEGEND_JOKES.length)]
+      .split('{{name}}').join(LEGEND_NAME);
+  let jokeInterval = null;
+  const startJokeRotation = (el, intervalMs) => {
+    stopJokeRotation();
+    el.textContent = legendJoke();
+    jokeInterval = setInterval(() => { el.textContent = legendJoke(); }, intervalMs);
+  };
+  const stopJokeRotation = () => {
+    if (jokeInterval) clearInterval(jokeInterval);
+    jokeInterval = null;
+  };
+
   // Global secret-role reveal timer with a top-of-viewport progress bar.
   let currentTimerRAF = null;
   const cancelTimer = () => {
     if (currentTimerRAF) cancelAnimationFrame(currentTimerRAF);
     currentTimerRAF = null;
     document.getElementById('timer-bar').classList.add('hidden');
+    stopJokeRotation();
   };
   const startTimer = (durationMs, onProgress, onComplete) => {
     cancelTimer();
@@ -1086,14 +1164,16 @@
       fitRotatedImages(body);
       startTimer(REVEAL_TIMER_SECS * 1000, null, () => { hideBtn.disabled = false; });
     } else {
-      // Info-blind role: countdown placeholder, then reveal the card.
+      // Info-blind role: countdown placeholder with rotating jokes, then
+      // reveal the card. Jokes swap every 6 seconds while waiting.
       body.innerHTML = `
         <div class="reveal-wait">
           <div class="reveal-wait-title">Get Ready</div>
           <div class="reveal-wait-timer" id="reveal-countdown">${REVEAL_TIMER_SECS}</div>
-          <div class="reveal-wait-sub">Your role will appear when the timer ends.</div>
+          <div class="reveal-wait-joke" id="reveal-joke"></div>
         </div>`;
       replaceCurrent('screen-reveal-setup');
+      startJokeRotation(document.getElementById('reveal-joke'), 6000);
       startTimer(REVEAL_TIMER_SECS * 1000, (p, remaining) => {
         const el = document.getElementById('reveal-countdown');
         if (el) el.textContent = Math.ceil(remaining / 1000);
