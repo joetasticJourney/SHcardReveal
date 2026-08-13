@@ -756,16 +756,6 @@
   const legendJoke = () =>
     LEGEND_JOKES[Math.floor(Math.random() * LEGEND_JOKES.length)]
       .split('{{name}}').join(LEGEND_NAME);
-  let jokeInterval = null;
-  const startJokeRotation = (el, intervalMs) => {
-    stopJokeRotation();
-    el.textContent = legendJoke();
-    jokeInterval = setInterval(() => { el.textContent = legendJoke(); }, intervalMs);
-  };
-  const stopJokeRotation = () => {
-    if (jokeInterval) clearInterval(jokeInterval);
-    jokeInterval = null;
-  };
 
   // Global secret-role reveal timer with a top-of-viewport progress bar.
   let currentTimerRAF = null;
@@ -773,7 +763,6 @@
     if (currentTimerRAF) cancelAnimationFrame(currentTimerRAF);
     currentTimerRAF = null;
     document.getElementById('timer-bar').classList.add('hidden');
-    stopJokeRotation();
   };
   const startTimer = (durationMs, onProgress, onComplete) => {
     cancelTimer();
@@ -1283,7 +1272,7 @@
           <div class="reveal-wait-joke" id="reveal-joke"></div>
         </div>`;
       replaceCurrent('screen-reveal-setup');
-      startJokeRotation(document.getElementById('reveal-joke'), 7000);
+      document.getElementById('reveal-joke').textContent = legendJoke();
       startTimer(REVEAL_TIMER_SECS * 1000, (p, remaining) => {
         const el = document.getElementById('reveal-countdown');
         if (el) el.textContent = Math.ceil(remaining / 1000);
