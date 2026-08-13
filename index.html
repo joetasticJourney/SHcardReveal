@@ -514,6 +514,26 @@
   .btn-icon-lg { display: block; }
   /* Ensure the player screen leaves room for the fixed action bar. */
   #screen-player { padding-bottom: 80px; }
+  .scan-confirm-msg {
+    text-align: center;
+    font-size: 20px;
+    color: var(--ink);
+    margin: 20px 0 24px;
+    line-height: 1.5;
+  }
+  .scan-confirm-code {
+    color: var(--accent);
+    font-weight: bold;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    display: inline-block;
+    margin: 4px 0;
+  }
+  .scan-confirm-name {
+    color: var(--ink);
+    font-weight: bold;
+    font-style: italic;
+  }
   .scanner {
     position: relative;
     width: 100%;
@@ -674,6 +694,16 @@
     <div class="bottom-actions">
       <button id="btn-scan-player" class="secondary compact">Scan New Game</button>
       <button id="btn-newgame-player" class="secondary compact">Game Setup</button>
+    </div>
+  </div>
+
+  <!-- =============== CONFIRM: SCAN =============== -->
+  <div id="screen-confirm-scan" class="screen hidden">
+    <div class="panel">
+      <h2>Confirm Join</h2>
+      <div id="scan-confirm-body"></div>
+      <button id="scan-confirm-yes" class="ok">Join Game</button>
+      <button id="scan-confirm-no" class="secondary">Cancel</button>
     </div>
   </div>
 
@@ -1553,6 +1583,29 @@
     enterGame();
   };
 
+  const escapeHtml = s => (s == null ? '' : String(s).replace(/[&<>"']/g,
+    c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])));
+
+  // Confirmation before a scanned QR replaces the current game. Replaces the
+  // scanner in history so a cancel/back lands on the previous screen instead
+  // of a dead scanner view.
+  let pendingScannedEnc = null;
+  let pendingScannedGame = null;
+  const showScanConfirm = (enc, g) => {
+    pendingScannedEnc = enc;
+    pendingScannedGame = g;
+    const code = codeFromEnc(enc) || 'this game';
+    const savedName = storeGet(STORE_ME);
+    const nameInGame = savedName && g.p.indexOf(savedName) >= 0;
+    const codeSpan = `<span class="scan-confirm-code">${escapeHtml(code)}</span>`;
+    const asPart = nameInGame
+      ? ` as <span class="scan-confirm-name">${escapeHtml(savedName)}</span>`
+      : '';
+    $('scan-confirm-body').innerHTML =
+      `<div class="scan-confirm-msg">Join ${codeSpan}${asPart}?</div>`;
+    replaceCurrent('screen-confirm-scan');
+  };
+
   const tickScanner = () => {
     scanRAF = null;
     if (!scanStream) return;
@@ -1575,7 +1628,7 @@
         const g = decodeGame(m[1]);
         if (g) {
           stopScanner();
-          applyScannedGame(m[1], g);
+          showScanConfirm(m[1], g);
           return;
         } else {
           $('scan-status').textContent = 'That QR is not a valid game — keep scanning…';
@@ -1629,6 +1682,19 @@
   $('btn-scan-pick').addEventListener('click', openScanner);
   $('btn-scan-player').addEventListener('click', openScanner);
   $('btn-scan-setup').addEventListener('click', openScanner);
+
+  $('scan-confirm-yes').addEventListener('click', () => {
+    const enc = pendingScannedEnc;
+    const g   = pendingScannedGame;
+    pendingScannedEnc = null;
+    pendingScannedGame = null;
+    if (enc && g) applyScannedGame(enc, g);
+  });
+  $('scan-confirm-no').addEventListener('click', () => {
+    pendingScannedEnc = null;
+    pendingScannedGame = null;
+    back();
+  });
   $('scan-cancel').addEventListener('click', () => { stopScanner(); back(); });
 
   // If the user navigates away from the scanner by any means (back button,
