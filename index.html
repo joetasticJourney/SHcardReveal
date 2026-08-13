@@ -206,6 +206,8 @@
     right: 0;
     bottom: 0;
     display: flex;
+    flex-direction: row;
+    flex-wrap: nowrap;
     gap: 10px;
     padding: 10px 16px;
     padding-bottom: max(10px, env(safe-area-inset-bottom));
@@ -215,14 +217,19 @@
     z-index: 10;
   }
   .bottom-actions button {
-    flex: 1;
+    flex: 1 1 0;
+    min-width: 0;
+    width: auto;
     margin-top: 0;
+    display: block;
   }
   button.compact {
     padding: 12px 6px;
     font-size: 14px;
     letter-spacing: 0.5px;
   }
+  /* Ensure the player screen leaves room for the fixed action bar. */
+  #screen-player { padding-bottom: 80px; }
   .scanner {
     position: relative;
     width: 100%;
@@ -323,6 +330,7 @@
       <p class="muted" style="text-align:left; margin:0;">Every player scans this same code on their phone, then picks their name.</p>
       <div class="qr-wrap"><div id="qr-holder"></div></div>
       <div class="url-box" id="url-box"></div>
+      <button id="btn-join-host">Join This Game</button>
       <div class="row">
         <button id="copy-url" class="secondary">Copy Link</button>
         <button id="new-game" class="secondary">New Game</button>
@@ -545,6 +553,7 @@
 
     const data = { p: names, r: roles };
     const encoded = b64uEncode(data);
+    lastGeneratedEnc = encoded;
     // Strip any existing hash/query so we build a clean base URL, and fall back
     // to location.href when location.origin is "null" (file:// scheme).
     const base = (location.origin && location.origin !== 'null')
@@ -583,9 +592,24 @@
     showSetup();
   });
 
+  $('btn-join-host').addEventListener('click', () => {
+    if (!lastGeneratedEnc) return;
+    const g = decodeGame(lastGeneratedEnc);
+    if (!g) return;
+    // Treat host-join as a URL load of the freshly generated game.
+    storeSet(STORE_GAME, lastGeneratedEnc);
+    storeSet(STORE_LAST_FRAG, lastGeneratedEnc);
+    storeDel(STORE_ME);
+    game = g;
+    meIdx = -1;
+    buildPickButtons();
+    show('screen-pick');
+  });
+
   // ---------- Player: load from URL / storage ----------
   let game = null;      // { p: [names], r: [roles] }
   let meIdx = -1;
+  let lastGeneratedEnc = null;  // Encoded game from the most recent host Generate
 
   const STORE_GAME = 'sh_game_enc';
   const STORE_ME   = 'sh_me_idx';
