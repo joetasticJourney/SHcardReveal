@@ -163,20 +163,41 @@
   .section-divider {
     display: flex;
     align-items: center;
-    gap: 12px;
-    color: var(--muted);
-    font-size: 11px;
+    gap: 14px;
+    color: var(--accent);
+    font-size: 12px;
     text-transform: uppercase;
-    letter-spacing: 2.5px;
-    margin: 28px 0 14px;
+    letter-spacing: 4px;
+    font-weight: bold;
+    margin: 34px 0 18px;
+    text-shadow: 0 0 12px rgba(212, 162, 74, 0.35);
   }
-  .section-divider span { flex-shrink: 0; }
-  .section-divider::before,
+  .section-divider span {
+    flex-shrink: 0;
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    padding: 0 2px;
+  }
+  .section-divider span::before,
+  .section-divider span::after {
+    content: '\25C6';
+    font-size: 7px;
+    color: var(--accent);
+    opacity: 0.75;
+    transform: translateY(-1px);
+  }
+  .section-divider::before {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: linear-gradient(to right, transparent 0%, rgba(212, 162, 74, 0.55) 100%);
+  }
   .section-divider::after {
     content: '';
     flex: 1;
     height: 1px;
-    background: var(--border);
+    background: linear-gradient(to right, rgba(212, 162, 74, 0.55) 0%, transparent 100%);
   }
   .current-game-section button { margin-top: 10px; }
   .current-game-section button:first-of-type { margin-top: 0; }
