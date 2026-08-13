@@ -1480,9 +1480,10 @@
       // Info-blind role: countdown placeholder, then reveal the card.
       // Message under the countdown is a joke or plain instructions per the
       // game's jokes flag.
+      const instructionHtml = `<div class="reveal-wait-sub">Keep your eyes on the screen until the timer is up.</div>`;
       const messageHtml = jokesOn
-        ? `<div class="reveal-wait-joke">${legendJoke()}</div>`
-        : `<div class="reveal-wait-sub">Keep your eyes on the screen until the timer is up.</div>`;
+        ? instructionHtml + `<div class="reveal-wait-joke">${legendJoke()}</div>`
+        : instructionHtml;
       body.innerHTML = `
         <div class="reveal-wait">
           <div class="reveal-wait-title">Get Ready</div>
