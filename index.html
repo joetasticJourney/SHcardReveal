@@ -160,6 +160,107 @@
     opacity: 0.4;
     cursor: not-allowed;
   }
+  .game-setting {
+    margin: 0 0 14px;
+    padding: 12px 14px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: #17140f;
+  }
+  .game-setting-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 10px;
+    gap: 12px;
+  }
+  .setting-label {
+    color: var(--ink);
+    font-size: 15px;
+  }
+  .setting-label b { color: var(--accent); font-weight: bold; }
+  .toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+    user-select: none;
+    -webkit-user-select: none;
+  }
+  .toggle input {
+    position: absolute;
+    opacity: 0;
+    width: 0;
+    height: 0;
+    pointer-events: none;
+  }
+  .toggle-track {
+    position: relative;
+    display: inline-block;
+    width: 44px;
+    height: 24px;
+    background: var(--border);
+    border-radius: 12px;
+    transition: background 0.2s;
+    flex-shrink: 0;
+  }
+  .toggle-track::before {
+    content: '';
+    position: absolute;
+    top: 2px;
+    left: 2px;
+    width: 20px;
+    height: 20px;
+    background: var(--ink);
+    border-radius: 50%;
+    transition: transform 0.2s, background 0.2s;
+  }
+  .toggle input:checked + .toggle-track { background: var(--accent); }
+  .toggle input:checked + .toggle-track::before {
+    transform: translateX(20px);
+    background: #1a1508;
+  }
+  .toggle input:focus-visible + .toggle-track {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+  }
+  .toggle-text {
+    color: var(--muted);
+    font-size: 13px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+  }
+  input[type="range"].slider {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 100%;
+    height: 6px;
+    background: var(--border);
+    border-radius: 3px;
+    outline: none;
+    padding: 0;
+    margin: 4px 0;
+  }
+  input[type="range"].slider::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 24px;
+    height: 24px;
+    background: var(--accent);
+    border-radius: 50%;
+    cursor: pointer;
+    box-shadow: 0 0 6px rgba(212, 162, 74, 0.5);
+    border: none;
+  }
+  input[type="range"].slider::-moz-range-thumb {
+    width: 24px;
+    height: 24px;
+    background: var(--accent);
+    border-radius: 50%;
+    cursor: pointer;
+    border: none;
+    box-shadow: 0 0 6px rgba(212, 162, 74, 0.5);
+  }
   .players-list {
     list-style: none;
     padding: 0;
@@ -445,6 +546,17 @@
   <div id="screen-setup" class="screen">
     <div class="panel">
       <h2>New Game</h2>
+      <div class="game-setting">
+        <div class="game-setting-row">
+          <span class="setting-label">Reveal Timer: <b id="timer-value">15</b>s</span>
+          <label class="toggle">
+            <input type="checkbox" id="jokes-toggle" checked>
+            <span class="toggle-track"></span>
+            <span class="toggle-text">Jokes</span>
+          </label>
+        </div>
+        <input type="range" id="timer-input" min="0" max="30" value="15" step="1" class="slider">
+      </div>
       <p class="muted" style="text-align:left; margin:0 0 8px;">Enter 5–10 player names, then generate a QR code that everyone scans with their phone.</p>
       <ul id="players-list" class="players-list"></ul>
       <button id="add-player" class="secondary">+ Add Player</button>
@@ -898,6 +1010,11 @@
     renderRows(hostNames);
   });
 
+  // Live-update the label as the reveal-timer slider moves.
+  $('timer-input').addEventListener('input', e => {
+    $('timer-value').textContent = e.target.value;
+  });
+
   $('generate').addEventListener('click', () => {
     const names = hostNames.map(n => (n || '').trim()).filter(Boolean);
     if (names.length < 5 || names.length > 10) {
@@ -917,7 +1034,9 @@
     roles.push(ROLE.HITLER);
     shuffle(roles);
 
-    const data = { p: names, r: roles };
+    const timerSecs = Math.max(0, Math.min(30, parseInt($('timer-input').value, 10) || 0));
+    const jokesOn = $('jokes-toggle').checked ? 1 : 0;
+    const data = { p: names, r: roles, t: timerSecs, j: jokesOn };
     const encoded = b64uEncode(data);
     lastGeneratedEnc = encoded;
     setTitleFromEnc(encoded);
@@ -1253,6 +1372,9 @@
     const body = $('reveal-setup-body');
     const hideBtn = $('hide-setup');
     const sees = roleSeesTeammates();
+    // Read game-level config (backwards compat: fall back to 15s, jokes on).
+    const timerSecs = (typeof game.t === 'number') ? game.t : 15;
+    const jokesOn  = (typeof game.j === 'number') ? !!game.j : true;
     hideBtn.disabled = true;
 
     if (sees) {
@@ -1261,19 +1383,26 @@
       body.innerHTML = buildSetupCard();
       replaceCurrent('screen-reveal-setup');
       fitRotatedImages(body);
-      startTimer(REVEAL_TIMER_SECS * 1000, null, () => { hideBtn.disabled = false; });
-    } else {
-      // Info-blind role: countdown placeholder with rotating jokes, then
-      // reveal the card. Jokes swap every 6 seconds while waiting.
+      if (timerSecs > 0) {
+        startTimer(timerSecs * 1000, null, () => { hideBtn.disabled = false; });
+      } else {
+        hideBtn.disabled = false;
+      }
+    } else if (timerSecs > 0) {
+      // Info-blind role: countdown placeholder, then reveal the card.
+      // Message under the countdown is a joke or plain instructions per the
+      // game's jokes flag.
+      const messageHtml = jokesOn
+        ? `<div class="reveal-wait-joke">${legendJoke()}</div>`
+        : `<div class="reveal-wait-sub">Keep your eyes on the screen until the timer is up.</div>`;
       body.innerHTML = `
         <div class="reveal-wait">
           <div class="reveal-wait-title">Get Ready</div>
-          <div class="reveal-wait-timer" id="reveal-countdown">${REVEAL_TIMER_SECS}</div>
-          <div class="reveal-wait-joke" id="reveal-joke"></div>
+          <div class="reveal-wait-timer" id="reveal-countdown">${timerSecs}</div>
+          ${messageHtml}
         </div>`;
       replaceCurrent('screen-reveal-setup');
-      document.getElementById('reveal-joke').textContent = legendJoke();
-      startTimer(REVEAL_TIMER_SECS * 1000, (p, remaining) => {
+      startTimer(timerSecs * 1000, (p, remaining) => {
         const el = document.getElementById('reveal-countdown');
         if (el) el.textContent = Math.ceil(remaining / 1000);
       }, () => {
@@ -1281,6 +1410,12 @@
         fitRotatedImages(body);
         hideBtn.disabled = false;
       });
+    } else {
+      // Info-blind role with 0-second timer: reveal immediately.
+      body.innerHTML = buildSetupCard();
+      replaceCurrent('screen-reveal-setup');
+      fitRotatedImages(body);
+      hideBtn.disabled = false;
     }
   });
   $('confirm-party-yes').addEventListener('click', () => {
