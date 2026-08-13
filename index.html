@@ -378,6 +378,7 @@
       <h2 id="player-greeting"></h2>
       <button id="btn-setup">View Secret Role</button>
       <button id="btn-party" class="secondary btn-stacked"><svg class="btn-icon-lg" width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"></circle><line x1="16.65" y1="16.65" x2="21" y2="21"></line></svg><span>Reveal Party Affiliation</span></button>
+      <button id="btn-switch" class="secondary" style="margin-top:20px;">Switch Player (test)</button>
     </div>
     <div class="bottom-actions">
       <button id="btn-scan-player" class="secondary compact">Scan New Game</button>
@@ -872,6 +873,14 @@
   // ---------- Player buttons ----------
   $('btn-setup').addEventListener('click', () => go('screen-confirm-setup'));
   $('btn-party').addEventListener('click', () => go('screen-confirm-party'));
+
+  $('btn-switch').addEventListener('click', () => {
+    // Temporary: clear picked player and return to pick screen for testing.
+    meIdx = -1;
+    storeDel(STORE_ME);
+    updateCurrentPlayer();
+    show('screen-pick');
+  });
 
   $('btn-newgame-player').addEventListener('click', () => {
     // Pre-fill the setup form with the current game's player names so the
