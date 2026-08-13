@@ -237,8 +237,13 @@
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    gap: 6px;
+    gap: 8px;
     padding: 14px;
+    width: 160px;
+    max-width: 100%;
+    aspect-ratio: 1 / 1;
+    margin-left: auto;
+    margin-right: auto;
   }
   .btn-icon-lg { display: block; }
   /* Ensure the player screen leaves room for the fixed action bar. */
@@ -366,7 +371,7 @@
     <div class="panel">
       <h2 id="player-greeting"></h2>
       <button id="btn-setup">View Game Setup</button>
-      <button id="btn-party" class="secondary btn-stacked"><svg class="btn-icon-lg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"></circle><line x1="16.65" y1="16.65" x2="21" y2="21"></line></svg><span>Reveal Party Affiliation</span></button>
+      <button id="btn-party" class="secondary btn-stacked"><svg class="btn-icon-lg" width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"></circle><line x1="16.65" y1="16.65" x2="21" y2="21"></line></svg><span>Reveal Party Affiliation</span></button>
     </div>
     <div class="bottom-actions">
       <button id="btn-scan-player" class="secondary compact">Scan New Game</button>
