@@ -64,6 +64,10 @@
     color: var(--muted);
     font-size: 15px;
     margin: 0 0 16px;
+  }
+  .current-player .cp-name {
+    color: var(--ink);
+    font-weight: bold;
     font-style: italic;
   }
   h2 {
@@ -375,7 +379,6 @@
   <!-- =============== PLAYER: MAIN =============== -->
   <div id="screen-player" class="screen hidden">
     <div class="panel">
-      <h2 id="player-greeting"></h2>
       <button id="btn-setup">View Secret Role</button>
       <button id="btn-party" class="secondary btn-stacked"><svg class="btn-icon-lg" width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"></circle><line x1="16.65" y1="16.65" x2="21" y2="21"></line></svg><span>Reveal Party Affiliation</span></button>
       <button id="btn-switch" class="secondary" style="margin-top:20px;">Switch Player (test)</button>
@@ -725,7 +728,6 @@
       b.addEventListener('click', () => {
         meIdx = i;
         storeSet(STORE_ME, game.p[i]);   // persist name, not index
-        $('player-greeting').textContent = 'Hello, ' + game.p[meIdx];
         updateCurrentPlayer();
         // Replace the pick entry with the player entry so back doesn't
         // return here — a picked player stays picked for the whole game.
@@ -738,7 +740,9 @@
   const updateCurrentPlayer = () => {
     const el = $('current-player');
     if (game && meIdx >= 0 && meIdx < game.p.length) {
-      el.textContent = game.p[meIdx];
+      el.innerHTML = '<span class="cp-label">Player Name:</span> <span class="cp-name">' +
+        game.p[meIdx].replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])) +
+        '</span>';
       el.classList.remove('hidden');
     } else {
       el.classList.add('hidden');
@@ -759,7 +763,6 @@
     const idx = findSavedPlayerIdx();
     if (idx >= 0) {
       meIdx = idx;
-      $('player-greeting').textContent = 'Hello, ' + game.p[meIdx];
       updateCurrentPlayer();
       show('screen-player');
     } else {
