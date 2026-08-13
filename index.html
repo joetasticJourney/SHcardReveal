@@ -57,7 +57,14 @@
     text-transform: uppercase;
     text-align: center;
     color: var(--accent);
-    margin: 8px 0 20px;
+    margin: 8px 0 4px;
+  }
+  .current-player {
+    text-align: center;
+    color: var(--muted);
+    font-size: 15px;
+    margin: 0 0 16px;
+    font-style: italic;
   }
   h2 {
     font-size: 18px;
@@ -325,6 +332,7 @@
 <body>
 <div class="app">
   <h1>Secret Hitler</h1>
+  <div id="current-player" class="current-player hidden"></div>
 
   <!-- =============== HOST: SETUP =============== -->
   <div id="screen-setup" class="screen">
@@ -650,6 +658,9 @@
     // Reset URL and history state — this becomes the new starting point.
     history.replaceState(null, '', location.pathname);
     lastGeneratedEnc = null;
+    game = null;
+    meIdx = -1;
+    updateCurrentPlayer();
     setTitleFromEnc(null);
     showSetup();
   });
@@ -661,12 +672,10 @@
     // Treat host-join as a URL load of the freshly generated game.
     storeSet(STORE_GAME, lastGeneratedEnc);
     storeSet(STORE_LAST_FRAG, lastGeneratedEnc);
-    storeDel(STORE_ME);
+    // Keep saved name so enterGame can auto-pick if it's in the new lobby.
     game = g;
-    meIdx = -1;
     setTitleFromEnc(lastGeneratedEnc);
-    buildPickButtons();
-    show('screen-pick');
+    enterGame();
   });
 
   // ---------- Player: load from URL / storage ----------
@@ -675,7 +684,7 @@
   let lastGeneratedEnc = null;  // Encoded game from the most recent host Generate
 
   const STORE_GAME = 'sh_game_enc';
-  const STORE_ME   = 'sh_me_idx';
+  const STORE_ME   = 'sh_me_name';   // stores the player's NAME, persists across games
   // Tracks the last game we loaded from a URL fragment. Used at boot so that
   // when an iOS home-screen shortcut re-launches with a stale pinned URL, we
   // can distinguish "user just opened a genuinely new link" (fragment differs
@@ -714,14 +723,49 @@
       b.textContent = name;
       b.addEventListener('click', () => {
         meIdx = i;
-        storeSet(STORE_ME, String(i));
+        storeSet(STORE_ME, game.p[i]);   // persist name, not index
         $('player-greeting').textContent = 'Hello, ' + game.p[meIdx];
+        updateCurrentPlayer();
         // Replace the pick entry with the player entry so back doesn't
         // return here — a picked player stays picked for the whole game.
         replaceCurrent('screen-player');
       });
       wrap.appendChild(b);
     });
+  };
+
+  const updateCurrentPlayer = () => {
+    const el = $('current-player');
+    if (game && meIdx >= 0 && meIdx < game.p.length) {
+      el.textContent = game.p[meIdx];
+      el.classList.remove('hidden');
+    } else {
+      el.classList.add('hidden');
+    }
+  };
+
+  const findSavedPlayerIdx = () => {
+    if (!game) return -1;
+    const savedName = storeGet(STORE_ME);
+    if (!savedName) return -1;
+    return game.p.findIndex(n => n === savedName);
+  };
+
+  // Enter the loaded game: auto-pick if a saved player name matches; otherwise
+  // land on the pick screen. Assumes `game` has already been set.
+  const enterGame = () => {
+    buildPickButtons();
+    const idx = findSavedPlayerIdx();
+    if (idx >= 0) {
+      meIdx = idx;
+      $('player-greeting').textContent = 'Hello, ' + game.p[meIdx];
+      updateCurrentPlayer();
+      show('screen-player');
+    } else {
+      meIdx = -1;
+      updateCurrentPlayer();
+      show('screen-pick');
+    }
   };
 
   // ---------- Reveal builders ----------
@@ -871,16 +915,7 @@
     if (!g) return;
     game = g;
     setTitleFromEnc(enc);
-    buildPickButtons();
-    const savedIdxRaw = storeGet(STORE_ME);
-    const savedIdx = savedIdxRaw === null ? -1 : parseInt(savedIdxRaw, 10);
-    if (savedIdx >= 0 && savedIdx < game.p.length) {
-      meIdx = savedIdx;
-      $('player-greeting').textContent = 'Hello, ' + game.p[meIdx];
-      show('screen-player');
-    } else {
-      show('screen-pick');
-    }
+    enterGame();
   });
 
   $('confirm-setup-no').addEventListener('click', () => back());
@@ -929,17 +964,15 @@
   };
 
   const applyScannedGame = (enc, g) => {
-    // In-app scan: replace the stored game and clear the picked player.
+    // In-app scan: replace the stored game. Keep the saved player name so
+    // enterGame() can auto-pick if the same name exists in the new lobby.
     // Deliberately do NOT touch lastFrag so a subsequent home-screen relaunch
     // with the (old, pinned) URL fragment still prefers the newer stored game.
     storeSet(STORE_GAME, enc);
-    storeDel(STORE_ME);
     try { history.replaceState(null, '', location.pathname + '#g=' + enc); } catch (e) {}
     game = g;
-    meIdx = -1;
     setTitleFromEnc(enc);
-    buildPickButtons();
-    show('screen-pick');   // Reset root to pick with the new game loaded
+    enterGame();
   };
 
   const tickScanner = () => {
@@ -1058,12 +1091,12 @@
         g = decodeGame(storedEnc);
         usedEnc = storedEnc;
       } else {
-        // Genuinely new game arriving via URL — replace stored, wipe pick.
+        // Genuinely new game arriving via URL — replace stored. Keep the
+        // saved player name so enterGame can auto-pick when possible.
         g = decodeGame(fragEnc);
         if (g) {
           storeSet(STORE_GAME, fragEnc);
           storeSet(STORE_LAST_FRAG, fragEnc);
-          storeDel(STORE_ME);
           usedEnc = fragEnc;
         }
       }
@@ -1076,17 +1109,7 @@
     setTitleFromEnc(usedEnc);
 
     game = g;
-    buildPickButtons();
-    const savedIdxRaw = storeGet(STORE_ME);
-    const savedIdx = savedIdxRaw === null ? -1 : parseInt(savedIdxRaw, 10);
-    if (savedIdx >= 0 && savedIdx < game.p.length) {
-      meIdx = savedIdx;
-      $('player-greeting').textContent = 'Hello, ' + game.p[meIdx];
-      // Land directly on the player screen — a picked player stays picked.
-      show('screen-player');
-    } else {
-      show('screen-pick');
-    }
+    enterGame();
   };
   boot();
 })();
