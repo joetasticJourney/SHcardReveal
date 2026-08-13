@@ -657,9 +657,8 @@
   });
 
   $('new-game').addEventListener('click', () => {
-    hostNames = ['', '', '', '', ''];
-    renderRows(hostNames);
-    // Reset URL and history state — this becomes the new starting point.
+    // Keep the previously entered names in the setup form so the host can
+    // quickly tweak and regenerate. Only game/QR state is reset.
     history.replaceState(null, '', location.pathname);
     lastGeneratedEnc = null;
     game = null;
