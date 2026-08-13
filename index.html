@@ -435,6 +435,50 @@
 <script src="jsQR.js"></script>
 <script>
 (() => {
+  // ---------- Game code word lists ----------
+  // Each game gets a deterministic two-word code (adjective + animal) derived
+  // from the encoded game string. Players comparing codes can confirm they
+  // are all in the same game.
+  const ADJECTIVES = [
+    'Ancient','Bold','Brave','Bright','Brisk','Calm','Clever','Cosmic','Crimson','Curious',
+    'Daring','Dazzling','Devious','Divine','Dusty','Eager','Electric','Emerald','Enchanted','Epic',
+    'Faithful','Fearless','Fierce','Fiery','Flying','Frosted','Gallant','Gentle','Ghostly','Giant',
+    'Gilded','Gleaming','Glowing','Golden','Graceful','Grand','Grim','Happy','Hidden','Honest',
+    'Humble','Icy','Iron','Jade','Jolly','Jovial','Keen','Kind','Lively','Loyal',
+    'Lucky','Majestic','Merry','Mighty','Misty','Mystic','Noble','Nimble','Obsidian','Peaceful',
+    'Perfect','Playful','Proud','Quick','Quiet','Radiant','Rapid','Rare','Reckless','Regal',
+    'Restless','Rowdy','Royal','Sacred','Savage','Scarlet','Secret','Serene','Shadow','Shining',
+    'Silent','Silver','Sleepy','Sly','Solemn','Spirited','Stealthy','Steady','Stormy','Sturdy',
+    'Sunny','Swift','Tiny','Tricky','Vast','Vibrant','Victorious','Vigilant','Wandering','Whispering'
+  ];
+  const ANIMALS = [
+    'Antelope','Badger','Bat','Bear','Beaver','Bee','Bison','Boar','Bobcat','Buffalo',
+    'Camel','Caribou','Cheetah','Cobra','Cougar','Coyote','Crab','Crane','Crocodile','Crow',
+    'Deer','Dingo','Dolphin','Dragon','Duck','Eagle','Elephant','Elk','Falcon','Ferret',
+    'Finch','Fox','Frog','Gazelle','Gecko','Giraffe','Goat','Goose','Gorilla','Grouse',
+    'Hare','Hawk','Hedgehog','Heron','Hippo','Horse','Hound','Hyena','Ibex','Iguana',
+    'Jackal','Jaguar','Kangaroo','Koala','Kraken','Lemur','Leopard','Lion','Llama','Lynx',
+    'Mammoth','Marmot','Moose','Newt','Ocelot','Octopus','Orca','Osprey','Otter','Owl',
+    'Panda','Panther','Parrot','Peacock','Pelican','Penguin','Phoenix','Piranha','Platypus','Porcupine',
+    'Puffin','Puma','Python','Rabbit','Raccoon','Raven','Reindeer','Rhino','Salamander','Shark',
+    'Skunk','Sloth','Sparrow','Squid','Squirrel','Stag','Swan','Tiger','Tortoise','Toucan'
+  ];
+  const hashString = s => {
+    let h = 5381;
+    for (let i = 0; i < s.length; i++) h = ((h << 5) + h + s.charCodeAt(i)) | 0;
+    return h >>> 0;
+  };
+  const codeFromEnc = enc => {
+    if (!enc) return null;
+    const h = hashString(enc);
+    const adj = ADJECTIVES[h % ADJECTIVES.length];
+    const anim = ANIMALS[Math.floor(h / ADJECTIVES.length) % ANIMALS.length];
+    return adj + ' ' + anim;
+  };
+  const setTitleFromEnc = enc => {
+    document.querySelector('h1').textContent = codeFromEnc(enc) || 'Secret Hitler';
+  };
+
   // ---------- Rules ----------
   const ROLE = { LIBERAL: 0, FASCIST: 1, HITLER: 2 };
   const COUNTS = {
@@ -569,6 +613,7 @@
     const data = { p: names, r: roles };
     const encoded = b64uEncode(data);
     lastGeneratedEnc = encoded;
+    setTitleFromEnc(encoded);
     // Strip any existing hash/query so we build a clean base URL, and fall back
     // to location.href when location.origin is "null" (file:// scheme).
     const base = (location.origin && location.origin !== 'null')
@@ -604,6 +649,8 @@
     renderRows(hostNames);
     // Reset URL and history state — this becomes the new starting point.
     history.replaceState(null, '', location.pathname);
+    lastGeneratedEnc = null;
+    setTitleFromEnc(null);
     showSetup();
   });
 
@@ -617,6 +664,7 @@
     storeDel(STORE_ME);
     game = g;
     meIdx = -1;
+    setTitleFromEnc(lastGeneratedEnc);
     buildPickButtons();
     show('screen-pick');
   });
@@ -803,6 +851,7 @@
     const url = base + '#g=' + enc;
     $('url-box').textContent = url;
     lastGeneratedEnc = enc;
+    setTitleFromEnc(enc);
     try {
       const qr = qrcode(0, 'M');
       qr.addData(url);
@@ -821,6 +870,7 @@
     const g = decodeGame(enc);
     if (!g) return;
     game = g;
+    setTitleFromEnc(enc);
     buildPickButtons();
     const savedIdxRaw = storeGet(STORE_ME);
     const savedIdx = savedIdxRaw === null ? -1 : parseInt(savedIdxRaw, 10);
@@ -887,6 +937,7 @@
     try { history.replaceState(null, '', location.pathname + '#g=' + enc); } catch (e) {}
     game = g;
     meIdx = -1;
+    setTitleFromEnc(enc);
     buildPickButtons();
     show('screen-pick');   // Reset root to pick with the new game loaded
   };
@@ -993,17 +1044,19 @@
     const fragEnc   = getFragmentEnc();
     const storedEnc = storeGet(STORE_GAME);
     const lastFrag  = storeGet(STORE_LAST_FRAG);
-    let g = null;
+    let g = null, usedEnc = null;
 
     if (fragEnc) {
       if (storedEnc && fragEnc === storedEnc) {
         // Same game as stored — resume (preserves picked player).
         g = decodeGame(storedEnc);
+        usedEnc = storedEnc;
       } else if (storedEnc && fragEnc === lastFrag) {
         // Fragment is the URL we already handled last time, but stored has
         // moved on since (in-app scan). Prefer stored so the newer game
         // persists across iOS home-screen relaunches with pinned URLs.
         g = decodeGame(storedEnc);
+        usedEnc = storedEnc;
       } else {
         // Genuinely new game arriving via URL — replace stored, wipe pick.
         g = decodeGame(fragEnc);
@@ -1011,13 +1064,16 @@
           storeSet(STORE_GAME, fragEnc);
           storeSet(STORE_LAST_FRAG, fragEnc);
           storeDel(STORE_ME);
+          usedEnc = fragEnc;
         }
       }
     } else if (storedEnc) {
       g = decodeGame(storedEnc);
+      usedEnc = storedEnc;
     }
 
-    if (!g) { showSetup(); return; }
+    if (!g) { setTitleFromEnc(null); showSetup(); return; }
+    setTitleFromEnc(usedEnc);
 
     game = g;
     buildPickButtons();
