@@ -63,12 +63,33 @@
     text-align: center;
     color: var(--muted);
     font-size: 15px;
-    margin: 0 0 16px;
+    margin: 0 0 6px;
   }
   .current-player .cp-name {
     color: var(--ink);
     font-weight: bold;
     font-style: italic;
+  }
+  .game-stats {
+    text-align: center;
+    color: var(--muted);
+    font-size: 13px;
+    letter-spacing: 0.5px;
+    margin: 0 0 18px;
+    text-transform: uppercase;
+    font-variant: small-caps;
+  }
+  .game-stats .stat {
+    color: var(--ink);
+    font-weight: bold;
+    font-size: 15px;
+  }
+  .game-stats .stat.lib { color: var(--liberal); }
+  .game-stats .stat.fas { color: var(--fascist); }
+  .game-stats .sep {
+    color: var(--accent);
+    margin: 0 6px;
+    opacity: 0.5;
   }
   h2 {
     font-size: 18px;
@@ -349,6 +370,7 @@
 <div class="app">
   <h1>Secret Hitler</h1>
   <div id="current-player" class="current-player hidden"></div>
+  <div id="game-stats" class="game-stats hidden"></div>
 
   <!-- =============== HOST: SETUP =============== -->
   <div id="screen-setup" class="screen">
@@ -758,6 +780,26 @@
     } else {
       el.classList.add('hidden');
     }
+    updateGameStats();
+  };
+
+  const updateGameStats = () => {
+    const el = $('game-stats');
+    if (!game) { el.classList.add('hidden'); return; }
+    const total = game.p.length;
+    let libs = 0, fas = 0, hit = 0;
+    game.r.forEach(r => {
+      if (r === ROLE.LIBERAL) libs++;
+      else if (r === ROLE.FASCIST) fas++;
+      else if (r === ROLE.HITLER) hit++;
+    });
+    const sep = '<span class="sep">·</span>';
+    el.innerHTML =
+      `<span class="stat">${total}</span> Players` + sep +
+      `<span class="stat lib">${libs}</span> Liberals` + sep +
+      `<span class="stat fas">${fas}</span> Fascists` + sep +
+      `<span class="stat fas">${hit}</span> Hitler`;
+    el.classList.remove('hidden');
   };
 
   const findSavedPlayerIdx = () => {
