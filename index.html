@@ -232,6 +232,47 @@
     margin-top: 16px;
     box-shadow: 0 -12px 16px -8px var(--bg);
   }
+  .timer-bar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 5px;
+    background: rgba(212, 162, 74, 0.12);
+    z-index: 200;
+    pointer-events: none;
+  }
+  .timer-bar-fill {
+    height: 100%;
+    width: 0%;
+    background: var(--accent);
+    box-shadow: 0 0 10px rgba(212, 162, 74, 0.7);
+  }
+  .reveal-wait {
+    text-align: center;
+    padding: 60px 20px 40px;
+    color: var(--muted);
+  }
+  .reveal-wait-title {
+    font-size: 22px;
+    color: var(--accent);
+    text-transform: uppercase;
+    letter-spacing: 3px;
+    margin-bottom: 30px;
+  }
+  .reveal-wait-timer {
+    font-size: 96px;
+    color: var(--ink);
+    font-weight: bold;
+    font-variant-numeric: tabular-nums;
+    line-height: 1;
+    text-shadow: 0 0 24px rgba(212, 162, 74, 0.35);
+  }
+  .reveal-wait-sub {
+    font-size: 15px;
+    margin-top: 24px;
+    font-style: italic;
+  }
   .bottom-actions {
     position: fixed;
     left: 0;
@@ -367,6 +408,7 @@
 </style>
 </head>
 <body>
+<div id="timer-bar" class="timer-bar hidden"><div id="timer-bar-fill" class="timer-bar-fill"></div></div>
 <div class="app">
   <h1>Secret Hitler</h1>
   <div id="current-player" class="current-player hidden"></div>
@@ -536,6 +578,46 @@
     10: { L: 6, F: 3 },
   };
   const hitlerKnowsFascists = n => n <= 6;
+  const REVEAL_TIMER_SECS = 10;
+
+  // Global secret-role reveal timer with a top-of-viewport progress bar.
+  let currentTimerRAF = null;
+  const cancelTimer = () => {
+    if (currentTimerRAF) cancelAnimationFrame(currentTimerRAF);
+    currentTimerRAF = null;
+    document.getElementById('timer-bar').classList.add('hidden');
+  };
+  const startTimer = (durationMs, onProgress, onComplete) => {
+    cancelTimer();
+    const bar  = document.getElementById('timer-bar');
+    const fill = document.getElementById('timer-bar-fill');
+    fill.style.width = '0%';
+    bar.classList.remove('hidden');
+    const start = performance.now();
+    const tick = () => {
+      const elapsed = performance.now() - start;
+      const progress = Math.min(1, elapsed / durationMs);
+      fill.style.width = (progress * 100) + '%';
+      if (onProgress) onProgress(progress, Math.max(0, durationMs - elapsed));
+      if (elapsed >= durationMs) {
+        currentTimerRAF = null;
+        bar.classList.add('hidden');
+        if (onComplete) onComplete();
+      } else {
+        currentTimerRAF = requestAnimationFrame(tick);
+      }
+    };
+    currentTimerRAF = requestAnimationFrame(tick);
+  };
+  // Roles that get teammate info (fascists always; Hitler in 5-6 games).
+  // Info-blind roles get a countdown placeholder before their card appears.
+  const roleSeesTeammates = () => {
+    if (!game || meIdx < 0) return false;
+    const myRole = game.r[meIdx];
+    if (myRole === ROLE.FASCIST) return true;
+    if (myRole === ROLE.HITLER && hitlerKnowsFascists(game.p.length)) return true;
+    return false;
+  };
 
   // ---------- Utils ----------
   const $ = id => document.getElementById(id);
@@ -581,6 +663,8 @@
     const i = e.state?.i ?? 0;
     if (screenStack[i]) swap(screenStack[i]);
     if (i === 0) armRootTrap();   // Re-arm at root so tab isn't lost.
+    // If we've left the reveal screen, stop any running countdown.
+    if (screenStack[i] !== 'screen-reveal-setup') cancelTimer();
   });
   const b64uEncode = obj => {
     const json = JSON.stringify(obj);
@@ -990,9 +1074,35 @@
   // directly to the player screen (skipping the confirm modal).
   $('confirm-setup-yes').addEventListener('click', () => {
     const body = $('reveal-setup-body');
-    body.innerHTML = buildSetupCard();
-    replaceCurrent('screen-reveal-setup');
-    fitRotatedImages(body);
+    const hideBtn = $('hide-setup');
+    const sees = roleSeesTeammates();
+    hideBtn.disabled = true;
+
+    if (sees) {
+      // Show the card + teammate info right away, but lock Hide until the
+      // timer expires so this player has time to memorize the names.
+      body.innerHTML = buildSetupCard();
+      replaceCurrent('screen-reveal-setup');
+      fitRotatedImages(body);
+      startTimer(REVEAL_TIMER_SECS * 1000, null, () => { hideBtn.disabled = false; });
+    } else {
+      // Info-blind role: countdown placeholder, then reveal the card.
+      body.innerHTML = `
+        <div class="reveal-wait">
+          <div class="reveal-wait-title">Get Ready</div>
+          <div class="reveal-wait-timer" id="reveal-countdown">${REVEAL_TIMER_SECS}</div>
+          <div class="reveal-wait-sub">Your role will appear when the timer ends.</div>
+        </div>`;
+      replaceCurrent('screen-reveal-setup');
+      startTimer(REVEAL_TIMER_SECS * 1000, (p, remaining) => {
+        const el = document.getElementById('reveal-countdown');
+        if (el) el.textContent = Math.ceil(remaining / 1000);
+      }, () => {
+        body.innerHTML = buildSetupCard();
+        fitRotatedImages(body);
+        hideBtn.disabled = false;
+      });
+    }
   });
   $('confirm-party-yes').addEventListener('click', () => {
     const body = $('reveal-party-body');
@@ -1009,7 +1119,7 @@
   window.addEventListener('orientationchange', refitAll);
   window.visualViewport?.addEventListener('resize', refitAll);
 
-  $('hide-setup').addEventListener('click', () => back());
+  $('hide-setup').addEventListener('click', () => { cancelTimer(); back(); });
   $('hide-party').addEventListener('click', () => back());
 
   // ---------- QR Scanner ----------
