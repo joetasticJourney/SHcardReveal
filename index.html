@@ -300,23 +300,35 @@
   }
   .info .label {
     color: var(--muted);
-    font-size: 12px;
+    font-size: 14px;
     text-transform: uppercase;
-    letter-spacing: 1px;
-    margin: 8px 0 4px;
+    letter-spacing: 1.5px;
+    margin: 12px 0 6px;
   }
   .info .value {
     color: var(--ink);
-    font-size: 18px;
+    font-size: 22px;
   }
   .info ul {
     padding: 0;
-    margin: 4px 0 0;
+    margin: 6px 0 0;
     list-style: none;
   }
   .info ul li {
-    padding: 3px 0;
-    font-size: 17px;
+    padding: 4px 0;
+    font-size: 20px;
+  }
+  .info .hitler-name {
+    color: var(--fascist);
+    font-size: 34px;
+    font-weight: bold;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    text-shadow: 0 0 18px rgba(184, 65, 46, 0.55);
+    padding: 8px 0 12px;
+    margin: 4px 0 6px;
+    border-bottom: 1px solid rgba(184, 65, 46, 0.35);
+    line-height: 1.1;
   }
   .warn {
     background: #3a2a1a;
@@ -833,7 +845,7 @@
       extra = `
         <div class="info">
           <div class="label">Hitler</div>
-          <div class="value">${hitlerName}</div>
+          <div class="value hitler-name">${hitlerName}</div>
           <div class="label">Other Fascists</div>
           ${others}
         </div>`;
